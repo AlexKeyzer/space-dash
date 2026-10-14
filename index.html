@@ -1,0 +1,4262 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b0f22">
+<title>Космический Забег — Space Dash</title>
+<style>
+  /* ============ SPACE DASH v3 — flat pixel-arcade UI ============
+     Palette: panel #161c3a / line #2e3a6e / ink #e8eef7 / mut #8fa3d9
+     gold #ffd76a / red #e0503c / green #58d68d / blue #3552b8 /
+     purple #7229d3 / cyan #7edcff. Hard shadows, 2px borders,
+     4px radii. No gradients-on-everything, no glass, no emoji. */
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#0b0f22;
+    font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+    user-select:none; -webkit-user-select:none; touch-action:none; overscroll-behavior:none;
+    color:#e8eef7; }
+  #cv { position:fixed; inset:0; width:100%; height:100%; display:block; image-rendering:pixelated; }
+  #ui { position:fixed; inset:0; pointer-events:none; }
+  #ui .screen, #ui .overlay { pointer-events:auto; }
+  svg.pic { display:inline-block; vertical-align:-2px; }
+  i[data-ic] { display:inline-flex; font-style:normal; }
+
+  .screen { position:absolute; inset:0; display:none; flex-direction:column; align-items:center;
+    padding:calc(12px + env(safe-area-inset-top)) 14px calc(12px + env(safe-area-inset-bottom)); overflow:hidden; }
+  #scr-menu { overflow-y:auto; touch-action:pan-y; scrollbar-width:none; }
+  #scr-menu::-webkit-scrollbar { display:none; }
+  .screen.active { display:flex; }
+  .panel { width:100%; max-width:440px; display:flex; flex-direction:column; align-items:center; gap:12px; }
+  #scr-menu .panel { margin:auto 0; }
+
+  .title { font-size:clamp(26px,6.6vw,42px); font-weight:900; letter-spacing:3px; text-align:center;
+    color:#ffffff; text-shadow:0 4px 0 #7229d3, 0 8px 0 rgba(0,0,0,.45); margin:6px 0 2px; }
+  .subtitle { color:#8fa3d9; font-size:13px; font-weight:700; letter-spacing:1px; }
+
+  .btn { pointer-events:auto; position:relative; border:2px solid #0a0d20; cursor:pointer; color:#fff;
+    font-weight:800; letter-spacing:1.2px; border-radius:4px; padding:13px 18px; font-size:15px;
+    width:100%; max-width:340px; background:#3552b8; box-shadow:0 4px 0 #0a0d20;
+    transition:transform .06s, box-shadow .06s; text-shadow:0 1px 0 rgba(0,0,0,.35); }
+  .btn:active { transform:translateY(3px); box-shadow:0 1px 0 #0a0d20; }
+  .btn.gold { background:#f2a93b; color:#3a2400; text-shadow:none; }
+  .btn.green { background:#58d68d; color:#06281a; text-shadow:none; }
+  .btn.purple { background:#8a4bd6; }
+  .btn.gray { background:#4a5578; }
+  .btn.small { width:auto; padding:8px 13px; font-size:12.5px; }
+  .btn:disabled { filter:grayscale(.7) brightness(.6); cursor:default; }
+  .row { display:flex; gap:9px; width:100%; max-width:340px; justify-content:center; }
+  .row .btn { flex:1; }
+  #btn-ach, #btn-ships { font-size:12.5px; letter-spacing:.6px; }
+
+  .coins-pill { display:flex; align-items:center; gap:7px; background:#161c3a;
+    border:2px solid #2e3a6e; border-radius:4px; padding:6px 13px; color:#ffd76a;
+    font-weight:900; font-size:15px; box-shadow:0 3px 0 #0a0d20; }
+  .coins-pill .ic { display:flex; }
+  .h2 { color:#e8eef7; font-size:19px; font-weight:900; letter-spacing:2px; text-align:center; }
+  .backtop { display:flex; align-items:center; gap:10px; width:100%; max-width:440px; }
+  .backtop .btn { width:auto; flex:0 0 auto; }
+  .backtop .h2 { flex:1; }
+  .list { width:100%; max-width:440px; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    display:flex; flex-direction:column; gap:8px; padding:6px 2px 18px; touch-action:pan-y; flex:1; min-height:0;
+    scrollbar-width:thin; scrollbar-color:#2e3a6e transparent; }
+  .list::-webkit-scrollbar { width:6px; }
+  .list::-webkit-scrollbar-thumb { background:#2e3a6e; }
+  .card { background:#161c3a; border:2px solid #2e3a6e; border-radius:4px; padding:10px 12px; color:#e8eef7;
+    display:flex; align-items:center; gap:10px; box-shadow:0 3px 0 #0a0d20; }
+  .card .cbody { flex:1; min-width:0; }
+  .card .cname { font-weight:800; font-size:13.5px; }
+  .card .csub { color:#8fa3d9; font-size:11.5px; margin-top:3px; }
+  .card.done { border-color:#2f7a52; }
+  .pbar { height:8px; background:#0a0d20; border:1px solid #2e3a6e; margin-top:6px; }
+  .pbar i { display:block; height:100%; background:#58d68d;
+    background-image:repeating-linear-gradient(90deg, rgba(10,13,32,0) 0 6px, #0a0d20 6px 8px); }
+  .tag { font-size:11px; font-weight:900; color:#06281a; background:#58d68d; border:2px solid #0a0d20;
+    border-radius:3px; padding:2px 7px; }
+  .tag.lock { background:#4a5578; color:#0b0f22; }
+
+  .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; width:100%; }
+  .shipcard { background:#161c3a; border:2px solid #2e3a6e; border-radius:4px; padding:8px;
+    cursor:pointer; position:relative; box-shadow:0 3px 0 #0a0d20;
+    display:flex; gap:8px; align-items:center; text-align:left; }
+  .shipcard:active { transform:translateY(2px); box-shadow:0 1px 0 #0a0d20; }
+  .shipcard canvas { width:64px; height:68px; flex:0 0 64px; image-rendering:pixelated; }
+  .shipcard .sbody { flex:1; min-width:0; }
+  .shipcard .sn { font-size:11px; color:#e8eef7; font-weight:800; line-height:1.2; }
+  .shipcard .sdesc { font-size:9.5px; color:#8fa3d9; font-weight:700; line-height:1.3; margin-top:3px; }
+  .shipcard.sel { border-color:#ffd76a; box-shadow:0 3px 0 #0a0d20, 0 0 0 2px #ffd76a; }
+  .shipcard.locked .shipimg { filter:grayscale(1) brightness(.45); }
+  .shipcard .cost { position:absolute; top:3px; right:3px; font-size:9px; font-weight:900; color:#ffd76a;
+    background:#0a0d20; border:1px solid #6b5a26; border-radius:3px; padding:1px 4px; }
+
+  #hud { position:absolute; top:0; left:0; right:0; display:none;
+    padding:calc(9px + env(safe-area-inset-top)) 10px 0; pointer-events:none; }
+  #hud.active { display:block; }
+  .hudbar { display:flex; align-items:center; gap:8px; max-width:440px; margin:0 auto; }
+  .hudbox { background:#161c3a; border:2px solid #2e3a6e; border-radius:4px; padding:4px 10px;
+    color:#e8eef7; font-weight:900; font-size:13.5px; white-space:nowrap; box-shadow:0 3px 0 #0a0d20; }
+  #hud-coins { color:#ffd76a; border-color:#6b5a26; }
+  #btn-pause { pointer-events:auto; margin-left:auto; width:40px; height:40px; border-radius:4px;
+    border:2px solid #0a0d20; background:#4a5578; color:#e8eef7; font-size:14px; font-weight:900;
+    cursor:pointer; box-shadow:0 3px 0 #0a0d20; }
+  #fuelwrap { max-width:440px; margin:7px auto 0; height:12px; background:#0a0d20;
+    border:2px solid #2e3a6e; }
+  #hud-fuel { height:100%; width:100%; background:#58d68d;
+    background-image:repeating-linear-gradient(90deg, rgba(10,13,32,0) 0 8px, #0a0d20 8px 10px); }
+  #hud-fuel.low { background-color:#e0503c; animation:blink .7s steps(2) infinite; }
+  @keyframes blink { 50% { opacity:.45; } }
+  #speedwrap { max-width:440px; margin:4px auto 0; height:6px; background:#0a0d20; border:1px solid #2e3a6e; }
+  #hud-speed { height:100%; width:0%; background:#8a4bd6; }
+  #pu-chips { position:absolute; top:calc(102px + env(safe-area-inset-top)); left:0; right:0; display:flex;
+    gap:6px; justify-content:center; flex-wrap:wrap; padding:0 8px; }
+  .pu-chip { background:#161c3a; border:2px solid #2e3a6e; border-radius:4px; padding:3px 9px;
+    font-size:11.5px; font-weight:900; color:#7edcff; box-shadow:0 2px 0 #0a0d20; }
+  .pu-chip.magnet { color:#ff9db4; }
+  .pu-chip.double { color:#ffd76a; }
+  .pu-chip.combo { color:#ffb27a; border-color:#7a4a26; }
+  .pu-chip.storm { color:#ff6b5e; border-color:#7a2620; animation:blink .6s steps(2) infinite; }
+
+  .overlay { position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(6,8,20,.84); padding:16px; }
+  .overlay.active { display:flex; }
+  .obox { width:100%; max-width:390px; background:#161c3a; border:2px solid #2e3a6e; border-radius:6px;
+    padding:20px 16px; display:flex; flex-direction:column; gap:10px; align-items:center;
+    box-shadow:0 6px 0 #0a0d20; max-height:92vh; overflow-y:auto; touch-action:pan-y;
+    animation:pop .16s ease-out; }
+  @keyframes pop { from { transform:scale(.92); opacity:.4; } }
+  .otitle { font-size:23px; font-weight:900; letter-spacing:2px; color:#ffd76a; text-align:center;
+    text-shadow:0 3px 0 #7a4a00; }
+  .ostats { display:flex; gap:15px; color:#cfe0ff; font-weight:800; font-size:13.5px; flex-wrap:wrap; justify-content:center; }
+  .ostats b { color:#fff; }
+  .omsg { color:#58d68d; font-weight:800; font-size:13.5px; text-align:center; }
+  #over-ach { white-space:pre-line; line-height:1.5; }
+  #over-record { color:#ffd76a; font-size:16px; letter-spacing:1px; animation:blink .8s steps(2) 3; }
+
+  #ui .overlay#tut { background:rgba(6,8,20,.35); pointer-events:none; }
+  #tut.active { display:flex; }
+  #tut .tbox { pointer-events:auto; max-width:350px; text-align:center; }
+  #tut-text { color:#e8eef7; font-size:18px; font-weight:800; line-height:1.4;
+    background:#161c3a; border:2px solid #2e3a6e; border-radius:4px; padding:13px 17px;
+    box-shadow:0 4px 0 #0a0d20; }
+  #btn-tut-skip { margin-top:14px; }
+  #tut-hand { margin:14px auto 0; width:120px; animation:swipe 1.1s steps(2) infinite; }
+  @keyframes swipe { 0%,100% { transform:translateX(-26px); } 50% { transform:translateX(26px); } }
+
+  #toast-box { position:absolute; top:calc(20px + env(safe-area-inset-top)); left:0; right:0; display:flex;
+    flex-direction:column; align-items:center; gap:6px; pointer-events:none; z-index:50; }
+  .toast { background:#161c3a; border:2px solid #6b5a26; color:#ffe9b0; font-weight:800; font-size:12.5px;
+    border-radius:4px; padding:8px 15px; box-shadow:0 3px 0 #0a0d20; animation:tin .2s ease-out;
+    max-width:88vw; text-align:center; }
+  @keyframes tin { from { transform:translateY(-12px); opacity:0; } }
+
+  .boost-row { display:flex; gap:9px; width:100%; max-width:340px; }
+  .boost { flex:1; background:#161c3a; border:2px solid #2e3a6e; border-radius:4px; padding:7px 8px;
+    color:#cfe0ff; font-size:11px; font-weight:800; display:flex; flex-direction:column; gap:5px;
+    align-items:center; box-shadow:0 3px 0 #0a0d20; }
+  .boost > span { display:flex; align-items:center; gap:5px; }
+  .boost.on { border-color:#2f7a52; }
+  .boost .bb { display:flex; gap:5px; width:100%; }
+  .boost .btn { padding:6px 4px; font-size:10px; border-radius:3px; max-width:none; box-shadow:0 2px 0 #0a0d20; }
+
+  #loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:#8fa3d9; font-weight:800; letter-spacing:3px; background:#0b0f22; z-index:100; transition:opacity .4s; }
+  .flagbtn { font-size:20px; background:#161c3a; border:2px solid #2e3a6e; border-radius:4px;
+    padding:5px 14px; cursor:pointer; color:#e8eef7; box-shadow:0 3px 0 #0a0d20; }
+  .flagbtn.sel { border-color:#ffd76a; }
+  .sett { width:100%; max-width:340px; display:flex; align-items:center; justify-content:space-between;
+    background:#161c3a; border:2px solid #2e3a6e; border-radius:4px; padding:10px 14px;
+    color:#e8eef7; font-weight:800; font-size:14px; box-shadow:0 3px 0 #0a0d20; }
+
+  #scr-menu.active .panel > * { animation:menuIn .3s ease-out backwards; }
+  #scr-menu.active .panel > *:nth-child(1){animation-delay:.02s}
+  #scr-menu.active .panel > *:nth-child(2){animation-delay:.06s}
+  #scr-menu.active .panel > *:nth-child(3){animation-delay:.10s}
+  #scr-menu.active .panel > *:nth-child(4){animation-delay:.14s}
+  #scr-menu.active .panel > *:nth-child(5){animation-delay:.18s}
+  #scr-menu.active .panel > *:nth-child(6){animation-delay:.22s}
+  @keyframes menuIn { from { transform:translateY(12px); opacity:0; } }
+
+  /* skill bar */
+  #skill-bar { position:absolute; right:calc(10px + env(safe-area-inset-right)); bottom:calc(14px + env(safe-area-inset-bottom));
+    display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+  .sk { pointer-events:auto; display:flex; align-items:center; gap:6px; border:2px solid #0a0d20; border-radius:4px;
+    background:#161c3a; color:#ffd76a; padding:7px 9px; cursor:pointer; box-shadow:0 3px 0 #0a0d20;
+    font-weight:900; font-size:10px; letter-spacing:.5px; }
+  .sk em { font-style:normal; color:#8fa3d9; }
+  .sk.on { border-color:#7a4a26; color:#ffb27a; animation:blink .5s steps(2) infinite; }
+  .sk.off { opacity:.45; }
+  /* quests / weekly cards */
+  .qcard { padding:8px 10px; }
+  .qhead { font-weight:900; font-size:12px; letter-spacing:1px; color:#cfe0ff; margin-bottom:5px;
+    display:flex; align-items:center; gap:6px; }
+  .qrow { display:flex; align-items:center; gap:7px; padding:3px 0; font-size:11.5px; color:#aebcdf; }
+  .qrow .qt { flex:1; min-width:0; font-weight:700; }
+  .qrow .qp { color:#8fa3d9; font-weight:800; white-space:nowrap; }
+  .qrow .qp.rw { color:#ffd76a; }
+  .qrow.done .qt { color:#58d68d; text-decoration:line-through; }
+  .qrow.chest { border-top:1px dashed #2e3a6e; margin-top:4px; padding-top:6px; }
+  .qrow .btn { padding:4px 8px; font-size:10px; box-shadow:0 2px 0 #0a0d20; }
+  /* ship passport */
+  .sd-stars { color:#ffd76a; font-size:20px; letter-spacing:4px; text-shadow:0 2px 0 #0a0d20; }
+  .sd-traitbox { background:#10152c; border:2px solid #2e3a6e; border-radius:4px; padding:5px 12px;
+    color:#7edcff; font-weight:900; font-size:13px; letter-spacing:1px; }
+  .sd-desc { color:#aebcdf; font-size:12.5px; line-height:1.45; text-align:center; font-weight:600;
+    max-width:290px; }
+  .sd-stats { width:100%; display:flex; flex-direction:column; gap:4px; }
+  .sd-stats .st { display:flex; justify-content:space-between; font-size:11.5px; color:#8fa3d9; font-weight:800;
+    background:#10152c; border:1px solid #232c55; border-radius:3px; padding:3px 8px; }
+  .sd-stats .st b { color:#e8eef7; }
+  .sd-mast { width:100%; display:flex; flex-direction:column; gap:3px; }
+  .sd-mast .mrow { display:flex; align-items:center; gap:6px; font-size:11px; color:#8fa3d9; font-weight:700; }
+  .sd-mast .mrow.done { color:#58d68d; }
+  .sd-mast .mrow .mv { margin-left:auto; color:#cfe0ff; }
+  /* ship card meta */
+  .shipcard .tr { font-size:8.5px; color:#7edcff; font-weight:800; line-height:1.2; height:20px; overflow:hidden; }
+  .shipcard .stars { color:#ffd76a; letter-spacing:1px; }
+
+  @media (orientation:landscape) and (max-height:560px) {
+    .title { font-size:24px; margin:0; }
+    .btn { padding:9px 12px; font-size:12.5px; }
+    .panel { gap:6px; flex-direction:row; flex-wrap:wrap; justify-content:center; max-width:780px; }
+    .panel .coins-pill, .panel .subtitle { flex-basis:100%; }
+    .panel .btn { width:auto; flex:0 1 190px; }
+    .panel .boost-row { flex-basis:100%; max-width:400px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="ui">
+  <!-- MENU -->
+  <div id="scr-menu" class="screen">
+    <div class="panel">
+      <div class="coins-pill"><span class="ic"></span><span id="menu-coins">0</span></div>
+      <div class="title" data-i18n="app_name">Космический Забег</div>
+      <div class="subtitle" id="menu-best"></div>
+      <button id="btn-play" class="btn gold" data-i18n="play">ИГРАТЬ</button>
+      <div class="boost-row">
+        <div class="boost" id="bst-shield">
+          <span><i data-ic="shield" data-ic-size="14"></i> <span data-i18n="booster_shield">Стартовый щит</span></span>
+          <div class="bb">
+            <button class="btn small green" id="bst-shield-buy"></button>
+            <button class="btn small purple" id="bst-shield-ad" data-i18n="booster_ad">▶</button>
+          </div>
+        </div>
+        <div class="boost" id="bst-magnet">
+          <span><i data-ic="magnet" data-ic-size="14"></i> <span data-i18n="booster_magnet">Стартовый магнит</span></span>
+          <div class="bb">
+            <button class="btn small green" id="bst-magnet-buy"></button>
+            <button class="btn small purple" id="bst-magnet-ad" data-i18n="booster_ad">▶</button>
+          </div>
+        </div>
+      </div>
+      <div class="card qcard" style="width:100%;max-width:340px"><div class="cbody" id="quests-box"></div></div>
+      <div class="card qcard" style="width:100%;max-width:340px"><div class="cbody" id="weekly-box"></div></div>
+      <div class="row">
+        <button id="btn-missions" class="btn" data-i18n="missions">МИССИИ</button>
+        <button id="btn-daily" class="btn purple" data-i18n="daily">ЧЕЛЛЕНДЖ ДНЯ</button>
+      </div>
+      <div class="row">
+        <button id="btn-ships" class="btn" data-i18n="ships">КОРАБЛИ</button>
+        <button id="btn-ach" class="btn" data-i18n="achievements">ДОСТИЖЕНИЯ</button>
+        <button id="btn-set" class="btn gray" style="flex:0 0 52px" aria-label="settings"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MISSIONS -->
+  <div id="scr-missions" class="screen">
+    <div class="backtop">
+      <button class="btn small gray" data-back="menu">◀</button>
+      <div class="h2" data-i18n="missions">МИССИИ</div>
+      <div class="coins-pill"><span class="ic"></span><span class="mc-coins">0</span></div>
+    </div>
+    <div class="list" id="missions-list"></div>
+  </div>
+
+  <!-- DAILY -->
+  <div id="scr-daily" class="screen">
+    <div class="backtop">
+      <button class="btn small gray" data-back="menu">◀</button>
+      <div class="h2" data-i18n="daily_today">Испытание дня</div>
+      <div class="coins-pill"><span class="ic"></span><span class="mc-coins">0</span></div>
+    </div>
+    <div class="panel" style="margin-top:12px">
+      <div class="card" style="width:100%"><div class="cbody">
+        <div class="cname" id="daily-mod"></div>
+        <div class="csub" id="daily-best"></div>
+        <div class="csub" id="daily-streak"></div>
+        <div class="csub" id="daily-rewarded"></div>
+      </div></div>
+      <button id="btn-daily-play" class="btn gold" data-i18n="daily_play">НАЧАТЬ ИСПЫТАНИЕ</button>
+      <button class="btn gray small" data-back="menu" data-i18n="to_menu">В меню</button>
+    </div>
+  </div>
+
+  <!-- SHIPS -->
+  <div id="scr-ships" class="screen">
+    <div class="backtop">
+      <button class="btn small gray" data-back="menu">◀</button>
+      <div class="h2" id="ships-count"></div>
+      <div class="coins-pill"><span class="ic"></span><span class="mc-coins">0</span></div>
+    </div>
+    <div class="list"><div class="grid" id="ships-grid"></div></div>
+  </div>
+
+  <!-- SHIP PASSPORT -->
+  <div id="scr-ship" class="overlay">
+    <div class="obox" style="max-width:340px">
+      <canvas id="sd-sprite" width="120" height="128" style="image-rendering:pixelated"></canvas>
+      <div class="otitle" id="sd-name" style="font-size:19px"></div>
+      <div id="sd-stars" class="sd-stars"></div>
+      <div class="sd-traitbox"><span id="sd-trait"></span></div>
+      <div id="sd-desc" class="sd-desc"></div>
+      <div id="sd-stats" class="sd-stats"></div>
+      <div id="sd-mast" class="sd-mast"></div>
+      <button id="sd-equip" class="btn green"></button>
+      <button id="sd-buy" class="btn gold" style="display:none"></button>
+      <button id="sd-ad" class="btn purple" style="display:none"></button>
+      <button id="sd-back" class="btn gray small" data-i18n="sd_back">Назад</button>
+    </div>
+  </div>
+
+  <!-- ACHIEVEMENTS -->
+  <div id="scr-ach" class="screen">
+    <div class="backtop">
+      <button class="btn small gray" data-back="menu">◀</button>
+      <div class="h2" id="ach-count"></div>
+      <div class="coins-pill"><span class="ic"></span><span class="mc-coins">0</span></div>
+    </div>
+    <div class="list" id="ach-list"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="scr-set" class="screen">
+    <div class="backtop">
+      <button class="btn small gray" data-back="menu">◀</button>
+      <div class="h2" data-i18n="settings">НАСТРОЙКИ</div>
+    </div>
+    <div class="panel" style="margin-top:12px">
+      <div class="sett"><span data-i18n="sound">Звук</span><button id="set-sound" class="btn small green"></button></div>
+      <div class="sett"><span data-i18n="music">Музыка</span><button id="set-music" class="btn small green"></button></div>
+      <div class="sett"><span data-i18n="language">Язык</span>
+        <span style="display:flex;gap:6px">
+          <button id="lang-ru" class="flagbtn">RU</button>
+          <button id="lang-en" class="flagbtn">EN</button>
+        </span>
+      </div>
+      <div class="sett" style="justify-content:center"><span id="set-ver" style="color:#8fa3d9;font-size:11px"></span></div>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hudbar">
+      <div class="hudbox" id="hud-dist">0 м</div>
+      <div class="hudbox" id="hud-coins">0</div>
+      <div class="hudbox" id="hud-mode" style="display:none"></div>
+      <button id="btn-pause">❚❚</button>
+    </div>
+    <div id="fuelwrap"><div id="hud-fuel"></div></div>
+    <div id="speedwrap"><div id="hud-speed"></div></div>
+    <div id="pu-chips"></div>
+    <div id="skill-bar"></div>
+  </div>
+
+  <!-- PAUSE -->
+  <div id="scr-pause" class="overlay">
+    <div class="obox">
+      <div class="otitle" data-i18n="pause">Пауза</div>
+      <button id="btn-resume" class="btn green" data-i18n="resume">Продолжить</button>
+      <button id="btn-restart" class="btn" data-i18n="restart">Заново</button>
+      <button id="btn-pmenu" class="btn gray" data-i18n="to_menu">В меню</button>
+    </div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="scr-over" class="overlay">
+    <div class="obox">
+      <div class="otitle" id="over-title"></div>
+      <div id="over-record" class="omsg" style="display:none" data-i18n="new_record">НОВЫЙ РЕКОРД!</div>
+      <div class="ostats">
+        <span><span data-i18n="run_distance">Дистанция</span>: <b id="over-dist">0</b></span>
+        <span><i data-ic="coin" data-ic-size="13"></i> <b id="over-coins">0</b></span>
+        <span><span data-i18n="run_dodges">Уворотов</span>: <b id="over-dodges">0</b></span>
+      </div>
+      <div id="over-mission" class="omsg" style="display:none"></div>
+      <div id="over-ach" class="omsg" style="display:none"></div>
+      <button id="btn-cont-ad" class="btn purple" style="display:none"></button>
+      <button id="btn-cont-coins" class="btn green" style="display:none"></button>
+      <button id="btn-double" class="btn gold" style="display:none"></button>
+      <button id="btn-retry" class="btn" data-i18n="retry">ЕЩЁ РАЗ</button>
+      <button id="btn-over-menu" class="btn gray" data-i18n="menu">МЕНЮ</button>
+    </div>
+  </div>
+
+  <!-- TUTORIAL -->
+  <div id="tut" class="overlay">
+    <div class="tbox">
+      <div id="tut-text"></div>
+      <div id="tut-hand"></div>
+      <button id="btn-tut-skip" class="btn small gray" data-i18n="tut_skip">Пропустить ▶</button>
+    </div>
+  </div>
+
+  <div id="toast-box"></div>
+  <div id="loading"><span data-i18n="loading">Загрузка…</span></div>
+</div>
+
+<script>
+/* GamePush credentials — ЗАМЕНИТЬ после создания проекта в панели gamepush.com */
+window.GP_PROJECT_ID  = 'YOUR_PROJECT_ID';
+window.GP_PUBLIC_TOKEN = 'YOUR_PUBLIC_TOKEN';
+window.onGPInit = function (gp) {
+  window.gp = gp;
+  try { window.dispatchEvent(new Event('gp-ready')); } catch (e) {}
+};
+</script>
+<script>
+/* Official GamePush SDK loader (docs.gamepush.com/docs/get-start/getting-started),
+   parameterized with GP_PROJECT_ID / GP_PUBLIC_TOKEN above.
+   Debug modes: ?local=1 (no SDK at all) and ?mock=1 (tests inject their own gp). */
+(function(){
+var __qs = new URLSearchParams(location.search);
+if (__qs.has('local') || __qs.has('mock')) return;
+((s,c,o,r,e)=>{var f=0,t={},p=0,m=r.length,w=[],j=u=>{if(f||t[u])return;f=1;t[u]=1;var d=c.createElement(o);d.async=1;d.src=u+e;d.onerror=()=>{f=0;n()};var a=c.getElementsByTagName(o)[0];a.parentNode.insertBefore(d,a)},n=()=>{for(var k=0;k<w.length;k++)if(!t[w[k]])return j(w[k])},q=()=>{++p>=m&&!f&&n()};r.forEach(u=>s.fetch(u,{method:"HEAD"}).then(x=>{x&&x.ok?(w.push(u),j(u)):q()}).catch(q));s.setTimeout(()=>{f||n()},5000)})(window,document,"script",atob("aHR0cHM6Ly9ncy5lcG9uZXNoLmNvbS9zZGsvZ2FtZS1zY29yZS5qcyxodHRwczovL3MzLmdhbWVwdXNoLmNvbS9maWxlcy9ncy9zZGsvZ2FtZS1zY29yZS5qcyxodHRwczovL3MzLWV1LmdhbWVwdXNoLmNvbS9zZGsvZ2FtZS1zY29yZS5qcyxodHRwczovL2dhbWVwdXNoLmNvbS9zZGsvZ2FtZS1zY29yZS5qcw==").split(","),"?projectId="+encodeURIComponent(window.GP_PROJECT_ID)+"&publicToken="+encodeURIComponent(window.GP_PUBLIC_TOKEN)+"&callback=onGPInit");
+})();
+</script>
+<script>
+
+/* ===== i18n.js ===== */
+/* ============================================================
+ * SPACE DASH v2 — i18n dictionaries (RU / EN)
+ * 100% of in-game texts live here. t(key, params) interpolates {n}.
+ * ============================================================ */
+'use strict';
+
+const I18N = {
+  ru: {
+    app_name: 'Космический Забег',
+    play: 'ИГРАТЬ', missions: 'МИССИИ', daily: 'ЧЕЛЛЕНДЖ ДНЯ', ships: 'КОРАБЛИ',
+    achievements: 'ДОСТИЖЕНИЯ', settings: 'НАСТРОЙКИ', best: 'Рекорд: {n} м',
+    coins_label: 'Монеты',
+    pause: 'Пауза', resume: 'Продолжить', restart: 'Заново', to_menu: 'В меню',
+    fuel: 'ТОПЛИВО', distance_m: '{n} м', speed_lvl: 'Скорость {n}',
+    gameover_crash: 'КОРАБЛЬ РАЗБИТ!', gameover_fuel: 'ТОПЛИВО КОНЧИЛОСЬ!',
+    run_distance: 'Дистанция', run_coins: 'Монеты', run_dodges: 'Уворотов',
+    new_record: 'НОВЫЙ РЕКОРД!', continue_ad: '▶ Продолжить за рекламу',
+    continue_coins: 'Продолжить за {n} монет', double_ad: '▶ Монеты ×2',
+    retry: 'ЕЩЁ РАЗ', menu: 'МЕНЮ', mission_done: 'МИССИЯ ВЫПОЛНЕНА! +{n} монет',
+    mission_fail: 'Миссия не выполнена', ach_done: 'Достижение: {name}! +{n} монет',
+    ad_unavailable: 'Реклама недоступна — награда выдана так!',
+    daily_reward: 'Награда дня: +{n} монет', streak_now: 'Серия: {n} дн.',
+    tut_skip: 'Пропустить ▶',
+    tut1: 'Свайпай влево/вправо (или стрелки), чтобы менять полосу',
+    tut2: 'Уворачивайся от астероидов!',
+    tut3: 'Собирай монеты и канистры с топливом!',
+    tut_done: 'Отлично! Вперёд, к звёздам!',
+    mode_endless: 'Бесконечный', mode_mission: 'Миссия', mode_daily: 'Челлендж дня',
+    mission_play: 'В ЗАБЕГ!', mission_reward: 'Награда: {n} монет', mission_completed: '✔ Выполнено',
+    daily_today: 'Испытание дня', daily_mod: 'Модификатор: {name}',
+    daily_best: 'Лучший результат дня: {n} м', daily_play: 'НАЧАТЬ ИСПЫТАНИЕ',
+    daily_done_today: 'Награда за сегодня получена! Можно улучшать рекорд.',
+    ships_title: 'Ангар ({n}/47)', equip: 'ВЫБРАТЬ', equipped: '✔ ВЫБРАН',
+    buy: 'Купить за {n}', locked_ach: 'Нужно достижение: {name}',
+    ad_unlock_1d: '▶ Аренда на 1 день', rented: 'В аренде до конца дня',
+    sound: 'Звук', music: 'Музыка', language: 'Язык', on: 'ВКЛ', off: 'ВЫКЛ',
+    ach_title: 'Достижения ({n}/25)', ach_reward: '+{n} монет',
+    pu_shield: 'Щит', pu_magnet: 'Магнит', pu_double: 'Очки ×2', pu_fuel: 'Топливо',
+    booster_shield: 'Стартовый щит', booster_magnet: 'Стартовый магнит',
+    booster_cost: '{n} монет', booster_ad: '▶ или реклама',
+    combo: 'КОМБО ×{n}', combo_bonus: 'Комбо-бонус: +{n} монет!',
+    storm_warn: 'ШТОРМ ЧЕРЕЗ {n}!', storm_now: 'ШТОРМ!', near: 'Близко! +{n}',
+    // v4: traits
+    tr_stock: 'Штатный', tr_stockd: 'Без особых правил: чистая классика раннера.',
+    tr_tanker: 'Танкер', tr_tankerd: 'Столкновение не убивает: съедает 25 топлива. Бак кончится — конец.',
+    tr_smuggler: 'Контрабандист', tr_smugglerd: 'Монеты ×2, но трасса плотнее на 15%.',
+    tr_ghost: 'Призрак', tr_ghostd: 'Каждые 20 с — 1.5 с фазы: проходишь сквозь камни. Щиты не действуют.',
+    tr_miner: 'Шахтёр', tr_minerd: '+1 монета за каждый уворот.',
+    tr_scout: 'Разведчик', tr_scoutd: 'Видит приближение препятствий заранее (призрачный предпросмотр сверху).',
+    tr_bomber: 'Бомбер', tr_bomberd: '3 заряда за забег: свайп вниз уничтожает камень впереди.',
+    tr_chrono: 'Хроно', tr_chronod: 'Кнопка времени: раз за забег замедляет мир на 5 с.',
+    tr_magnetolog: 'Магнитолог', tr_magnetologd: 'Слабый магнит всегда включён, но монеты стоят вдвое меньше.',
+    tr_repair: 'Ремонтник', tr_repaird: 'Сам чинит щит каждые 45 с, если щита нет.',
+    tr_escort: 'Эскорт', tr_escortd: 'Дрон-компаньон собирает монеты соседней полосы.',
+    tr_forsa: 'Форсажник', tr_forsad: 'Овердрайв дольше (8 с) и без перегрева.',
+    tr_lucky: 'Счастливчик', tr_luckyd: 'Каждые 20 с — случайный бонус.',
+    tr_veteran: 'Ветеран', tr_veterand: '+25% наград миссий, но старт с половиной бака.',
+    tr_collector: 'Коллекционер', tr_collectord: 'Комбо-бонус каждые 5 звеньев вместо 10.',
+    tr_emperor: 'Император', tr_emperord: 'Каждый забег начинается со щитом и полным магнитом: имперская роскошь.',
+    tr_void: 'Тень Вакуума', tr_voidd: 'Каждые 10 с — фаза 2 с сквозь препятствия и постоянный магнит радиусом 2 полосы.',
+    tr_reaper: 'Жнец', tr_reaperd: 'Близкие пролёты платят +10 монет, овердрайв без перегрева и остывает за 6 с.',
+    trait_label: 'Трейт', mastery_label: 'Мастерство',
+    st_speed: 'Скорость', st_fuel: 'Бак', st_mag: 'Магнит', st_coin: 'Ценность монет',
+    ts_stock: 'Классические правила раннера', ts_tanker: 'Удар: −25 топлива вместо гибели',
+    ts_smuggler: 'Монеты ×2, трасса плотнее на 15%', ts_ghost: 'Фаза сквозь камни 1.5 с каждые 20 с',
+    ts_miner: '+1 монета за каждый уворот', ts_scout: 'Заранее видит препятствия сверху',
+    ts_bomber: '3 заряда: свайп вниз ломает камень', ts_chrono: 'Раз за забег: замедление мира 5 с',
+    ts_magnetolog: 'Слабый магнит всегда, монеты ×0.5', ts_repair: 'Сам чинит щит каждые 45 с',
+    ts_escort: 'Дрон собирает монеты соседней полосы', ts_forsa: 'Овердрайв 8 с и без перегрева',
+    ts_lucky: 'Случайный бонус каждые 20 с', ts_veteran: '+25% наград миссий, бак вдвое меньше',
+    ts_collector: 'Комбо-бонус каждые 5 звеньев',
+    ts_emperor: 'Старт каждого забега: щит + магнит', ts_void: 'Фаза 2 с каждые 10 с + магнит 2.0',
+    ts_reaper: 'Близко! +10, овердрайв без перегрева',
+    ad_ship_btn: 'Смотреть рекламу ({n}/3)', ad_ship_done: 'Реклама просмотрена (3/3)',
+    votes_buy: 'Купить за {n} голосов', votes_only: 'Покупка за голоса доступна только в VK',
+    votes_cancel: 'Покупка отменена',
+    sd_equipped: 'Выбран', sd_back: 'Назад', sd_progress: 'Прогресс мастерства',
+    mast1: '500 м этим кораблём', mast2: '150 монет за забег', mast3: 'Пережить 2 шторма',
+    // v4: quests / chest / capsule / weekly / skills
+    quests_title: 'Задания дня', quest_claim: 'Забрать', quest_done: 'Готово',
+    q_storm: 'Переживи {n} шторма за забег', q_near: 'Сделай {n} близких пролётов за забег',
+    chest_title: 'Сундук серии: {n} дн.', chest_open: '▶ Открыть сундук', chest_next: 'След. сундук: {n} дн.',
+    chest_reward: 'Сундук серии: +{n} монет!',
+    capsule: 'Капсула снабжения за возврат: +{n} монет!',
+    weekly_title: 'Рекорды недели',
+    od_ready: 'ОВЕРДРАЙВ', od_active: 'ФОРСАЖ!', od_heat: 'ПЕРЕГРЕВ', od_cd: 'остылание…',
+    skill_bomb: 'Заряд: {n}', skill_chrono: 'Время!',
+    trader_ok: 'Торговец: −30 монет → случайный бонус', trader_poor: 'Торговцу нужно 30 монет',
+    portal_in: 'Портал: бонусное пространство!',
+    boost_pad: 'Ускоритель!', gate_coins: 'Врата: поле монет', gate_boost: 'Врата: ускоритель',
+    m_dist_run: 'Пролети {n} м за один забег',
+    m_coins_run: 'Собери {n} монет за один забег',
+    m_dodges_run: 'Увернись от {n} препятствий за забег',
+    m_nodmg_run: 'Пролети {n} м без единого столкновения',
+    m_cans_run: 'Собери {n} канистр топлива за забег',
+    m_powerups_run: 'Собери {n} бонусов за забег',
+    m_shield_run: 'Отрази щитом {n} столкновений за забег',
+    m_dist_daily: 'Пролети {n} м в челлендже дня',
+    m_coins_total: 'Собери всего {n} монет',
+    m_dist_total: 'Пролети всего {n} м',
+    m_runs_total: 'Соверши {n} забегов',
+    m_bh_run: 'Избеги {n} чёрных дыр за забег',
+    m_missions: 'Выполни {n} миссий',
+    m_perfect: 'Собери все монеты забега (не менее {n}) без пропусков',
+    m_streak: 'Держи серию челленджей {n} дн.',
+    a_d500: 'Первые 500', a_d500d: 'Пролети 500 м за забег',
+    a_d1000: 'Километр', a_d1000d: 'Пролети 1000 м за забег',
+    a_d5000: 'Марафонец', a_d5000d: 'Пролети 5000 м за забег',
+    a_d10000: 'Покоритель космоса', a_d10000d: 'Пролети 10000 м за забег',
+    a_c100: 'Копилка', a_c100d: 'Собери 100 монет всего',
+    a_c500: 'Сундук', a_c500d: 'Собери 500 монет всего',
+    a_c1000: 'Сейф', a_c1000d: 'Собери 1000 монет всего',
+    a_c5000: 'Банк Галактики', a_c5000d: 'Собери 5000 монет всего',
+    a_dg50: 'Новичок-пилот', a_dg50d: 'Увернись от 50 астероидов',
+    a_dg200: 'Ловкач', a_dg200d: 'Увернись от 200 астероидов',
+    a_dg500: 'Ас', a_dg500d: 'Увернись от 500 астероидов',
+    a_dg1000: 'Легенда манёвра', a_dg1000d: 'Увернись от 1000 астероидов',
+    a_m10: 'Кадет', a_m10d: 'Выполни 10 миссий',
+    a_m25: 'Офицер', a_m25d: 'Выполни 25 миссий',
+    a_m50: 'Адмирал', a_m50d: 'Выполни 50 миссий',
+    a_s10: 'Малый ангар', a_s10d: 'Открой 10 кораблей',
+    a_s20: 'Большой ангар', a_s20d: 'Открой 20 кораблей',
+    a_s40: 'Весь флот', a_s40d: 'Открой все 47 кораблей',
+    a_st3: 'Постоянство', a_st3d: 'Серия челленджей 3 дня',
+    a_st7: 'Неделя в космосе', a_st7d: 'Серия челленджей 7 дней',
+    a_st30: 'Ветеран орбиты', a_st30d: 'Серия челленджей 30 дней',
+    a_nd1000: 'Неуязвимый', a_nd1000d: '1000 м за забег без урона',
+    a_perfect: 'Пылесос', a_perfectd: 'Собери все монеты за забег (от 50)',
+    a_runs100: 'Сотня забегов', a_runs100d: 'Соверши 100 забегов',
+    a_bh20: 'Укротитель дыр', a_bh20d: 'Избеги 20 чёрных дыр всего',
+    dm_normal: 'Классическая трасса', dm_storm: 'Астероидный шторм',
+    dm_rain: 'Монетный дождь', dm_clean: 'Без обломков', dm_fast: 'Быстрый старт',
+    dm_marathon: 'Полный бак',
+    ship1: 'Ракета «Стрела»', ship2: 'Шаттл «Ветер»', ship3: 'Истребитель «Сокол»',
+    ship4: 'Крейсер «Гром»', ship5: 'Зонд «Искатель»', ship6: 'Пират «Чёрная комета»',
+    ship7: 'Военный «Бастион»', ship8: 'Гоночный «Фотон»', ship9: 'Грузовик «Муравей»',
+    ship10: 'Разведчик «Тень»', ship11: 'Корсар «Абордаж»', ship12: 'Линкор «Титан»',
+    ship13: 'Спринтер «Молния»', ship14: 'Транспорт «Караван»', ship15: 'Перехватчик «Оса»',
+    ship16: 'НЛО «Гость»', ship17: 'Дракон «Пламя»', ship18: 'Кит «Левиафан»',
+    ship19: 'Кристалл «Алмаз»', ship20: 'Призрак «Туман»', ship21: 'Феникс «Возрождение»',
+    ship22: 'Робот «Железяка»', ship23: 'Медуза «Стрекало»', ship24: 'Оса «Жало»',
+    ship25: 'Комета «Хвостатая»', ship26: 'Спутник «Око»', ship27: 'Акула «Плавник»',
+    ship28: 'Молния «Разряд»', ship29: 'Вихрь «Торнадо»', ship30: 'Звезда «Сириус»',
+    ship31: 'Имперский «Флагман»', ship32: 'Квантовый «Скачок»', ship33: 'Плазма «Солнце»',
+    ship34: 'Нейтрон «Ядро»', ship35: 'Гипер «Предел»', ship36: 'Антиматерия «Мрак»',
+    ship37: 'Галактика «Спираль»', ship38: 'Пустота «Ноль»', ship39: 'Вечность «Эон»',
+    ship40: 'Создатель «Альфа»',
+    ship44: 'Страж «Цитадель»',
+    ship43: 'Искра «Фейерверк»',
+    ship42: 'Буксир «Кряж»',
+    ship41: 'Пионер «Рассвет»',
+    ship41: 'Пионер «Рассвет»', ship42: 'Буксир «Кряж»', ship43: 'Искра «Фейерверк»', ship44: 'Страж «Цитадель»',
+    ship45: 'Император Галактики', ship46: 'Тень Вакуума', ship47: 'Звёздный Жнец',
+    loading: 'Загрузка…',
+    cloud_sync: 'Облачный сейв загружен',
+    not_enough_coins: 'Недостаточно монет',
+  },
+  en: {
+    app_name: 'Space Dash',
+    play: 'PLAY', missions: 'MISSIONS', daily: 'DAILY CHALLENGE', ships: 'SHIPS',
+    achievements: 'ACHIEVEMENTS', settings: 'SETTINGS', best: 'Best: {n} m',
+    coins_label: 'Coins',
+    pause: 'Pause', resume: 'Resume', restart: 'Restart', to_menu: 'Menu',
+    fuel: 'FUEL', distance_m: '{n} m', speed_lvl: 'Speed {n}',
+    gameover_crash: 'SHIP DESTROYED!', gameover_fuel: 'OUT OF FUEL!',
+    run_distance: 'Distance', run_coins: 'Coins', run_dodges: 'Dodges',
+    new_record: 'NEW RECORD!', continue_ad: '▶ Continue with ad',
+    continue_coins: 'Continue for {n} coins', double_ad: '▶ Double coins',
+    retry: 'PLAY AGAIN', menu: 'MENU', mission_done: 'MISSION COMPLETE! +{n} coins',
+    mission_fail: 'Mission failed', ach_done: 'Achievement: {name}! +{n} coins',
+    ad_unavailable: 'Ad unavailable — reward granted anyway!',
+    daily_reward: 'Daily reward: +{n} coins', streak_now: 'Streak: {n} days',
+    tut_skip: 'Skip ▶',
+    tut1: 'Swipe left/right (or arrow keys) to change lane',
+    tut2: 'Dodge the asteroids!',
+    tut3: 'Collect coins and fuel cans!',
+    tut_done: 'Great! Off to the stars!',
+    mode_endless: 'Endless', mode_mission: 'Mission', mode_daily: 'Daily challenge',
+    mission_play: 'START RUN!', mission_reward: 'Reward: {n} coins', mission_completed: '✔ Done',
+    daily_today: 'Challenge of the day', daily_mod: 'Modifier: {name}',
+    daily_best: "Today's best: {n} m", daily_play: 'START CHALLENGE',
+    daily_done_today: "Today's reward claimed! Beat your record.",
+    ships_title: 'Hangar ({n}/47)', equip: 'SELECT', equipped: '✔ SELECTED',
+    buy: 'Buy for {n}', locked_ach: 'Requires achievement: {name}',
+    ad_unlock_1d: '▶ Rent for 1 day', rented: 'Rented until end of day',
+    sound: 'Sound', music: 'Music', language: 'Language', on: 'ON', off: 'OFF',
+    ach_title: 'Achievements ({n}/25)', ach_reward: '+{n} coins',
+    pu_shield: 'Shield', pu_magnet: 'Magnet', pu_double: 'Score ×2', pu_fuel: 'Fuel',
+    booster_shield: 'Start shield', booster_magnet: 'Start magnet',
+    booster_cost: '{n} coins', booster_ad: '▶ or watch ad',
+    combo: 'COMBO ×{n}', combo_bonus: 'Combo bonus: +{n} coins!',
+    storm_warn: 'STORM IN {n}!', storm_now: 'STORM!', near: 'Close! +{n}',
+    tr_stock: 'Stock', tr_stockd: 'No special rules: pure runner classic.',
+    tr_tanker: 'Tanker', tr_tankerd: 'Collisions do not kill: they burn 25 fuel. Empty tank ends the run.',
+    tr_smuggler: 'Smuggler', tr_smugglerd: 'Coins ×2, but the track is 15% denser.',
+    tr_ghost: 'Ghost', tr_ghostd: 'Every 20 s: 1.5 s phase through rocks. Shields do not work.',
+    tr_miner: 'Miner', tr_minerd: '+1 coin per dodge.',
+    tr_scout: 'Scout', tr_scoutd: 'Sees incoming obstacles early (ghost preview above).',
+    tr_bomber: 'Bomber', tr_bomberd: '3 charges per run: swipe down destroys the rock ahead.',
+    tr_chrono: 'Chrono', tr_chronod: 'Time button: once per run slow the world for 5 s.',
+    tr_magnetolog: 'Magneto', tr_magnetologd: 'Weak magnet always on, but coins are worth half.',
+    tr_repair: 'Repairman', tr_repaird: 'Rebuilds a shield every 45 s when you have none.',
+    tr_escort: 'Escort', tr_escortd: 'A companion drone collects coins from the neighbour lane.',
+    tr_forsa: 'Afterburner', tr_forsad: 'Overdrive lasts 8 s with no overheat.',
+    tr_lucky: 'Lucky', tr_luckyd: 'A random power-up every 20 s.',
+    tr_veteran: 'Veteran', tr_veterand: '+25% mission rewards, but start with half a tank.',
+    tr_collector: 'Collector', tr_collectord: 'Combo bonus every 5 links instead of 10.',
+    tr_emperor: 'Emperor', tr_emperord: 'Every run starts with a shield and a full magnet: imperial luxury.',
+    tr_void: 'Void Shadow', tr_voidd: 'Every 10 s: 2 s phase through obstacles plus a permanent 2-lane magnet.',
+    tr_reaper: 'Reaper', tr_reaperd: 'Near-misses pay +10 coins; overdrive has no overheat and cools in 6 s.',
+    trait_label: 'Trait', mastery_label: 'Mastery',
+    st_speed: 'Speed', st_fuel: 'Fuel tank', st_mag: 'Magnet', st_coin: 'Coin value',
+    ts_stock: 'Classic runner rules', ts_tanker: 'Hits burn 25 fuel instead of killing',
+    ts_smuggler: 'Coins ×2, track 15% denser', ts_ghost: 'Phase through rocks 1.5 s / 20 s',
+    ts_miner: '+1 coin per dodge', ts_scout: 'Sees obstacles early from above',
+    ts_bomber: '3 charges: swipe down breaks a rock', ts_chrono: 'Once per run: slow world 5 s',
+    ts_magnetolog: 'Weak magnet always, coins ×0.5', ts_repair: 'Self-repairs a shield every 45 s',
+    ts_escort: 'Drone collects the neighbour lane', ts_forsa: 'Overdrive 8 s with no overheat',
+    ts_lucky: 'Random power-up every 20 s', ts_veteran: '+25% mission pay, half-size tank',
+    ts_collector: 'Combo bonus every 5 links',
+    ts_emperor: 'Every run starts with shield + magnet', ts_void: 'Phase 2 s / 10 s + magnet 2.0',
+    ts_reaper: 'Near-miss +10, overdrive without overheat',
+    ad_ship_btn: 'Watch ad ({n}/3)', ad_ship_done: 'Ads completed (3/3)',
+    votes_buy: 'Buy for {n} votes', votes_only: 'Votes purchase is available in VK only',
+    votes_cancel: 'Purchase cancelled',
+    sd_equipped: 'Equipped', sd_back: 'Back', sd_progress: 'Mastery progress',
+    mast1: 'Fly 500 m with this ship', mast2: '150 coins in one run', mast3: 'Survive 2 storms',
+    quests_title: 'Daily quests', quest_claim: 'Claim', quest_done: 'Done',
+    q_storm: 'Survive {n} storms in one run', q_near: 'Make {n} near-misses in one run',
+    chest_title: 'Streak chest: {n} d', chest_open: '▶ Open chest', chest_next: 'Next chest: {n} d',
+    chest_reward: 'Streak chest: +{n} coins!',
+    capsule: 'Return supply capsule: +{n} coins!',
+    weekly_title: 'Week records',
+    od_ready: 'OVERDRIVE', od_active: 'BOOST!', od_heat: 'OVERHEAT', od_cd: 'cooling…',
+    skill_bomb: 'Charges: {n}', skill_chrono: 'Time!',
+    trader_ok: 'Trader: −30 coins → random power-up', trader_poor: 'Trader needs 30 coins',
+    portal_in: 'Portal: bonus space!',
+    boost_pad: 'Boost pad!', gate_coins: 'Gate: coin field', gate_boost: 'Gate: boost pad',
+    m_dist_run: 'Fly {n} m in one run',
+    m_coins_run: 'Collect {n} coins in one run',
+    m_dodges_run: 'Dodge {n} obstacles in one run',
+    m_nodmg_run: 'Fly {n} m without a single hit',
+    m_cans_run: 'Collect {n} fuel cans in one run',
+    m_powerups_run: 'Collect {n} power-ups in one run',
+    m_shield_run: 'Block {n} hits with shield in one run',
+    m_dist_daily: 'Fly {n} m in daily challenge',
+    m_coins_total: 'Collect {n} coins in total',
+    m_dist_total: 'Fly {n} m in total',
+    m_runs_total: 'Complete {n} runs',
+    m_bh_run: 'Escape {n} black holes in one run',
+    m_missions: 'Complete {n} missions',
+    m_perfect: 'Collect every coin of a run (at least {n})',
+    m_streak: 'Keep a daily streak of {n} days',
+    a_d500: 'First 500', a_d500d: 'Fly 500 m in one run',
+    a_d1000: 'Kilometer', a_d1000d: 'Fly 1000 m in one run',
+    a_d5000: 'Marathoner', a_d5000d: 'Fly 5000 m in one run',
+    a_d10000: 'Space Conqueror', a_d10000d: 'Fly 10000 m in one run',
+    a_c100: 'Piggy bank', a_c100d: 'Collect 100 coins in total',
+    a_c500: 'Chest', a_c500d: 'Collect 500 coins in total',
+    a_c1000: 'Vault', a_c1000d: 'Collect 1000 coins in total',
+    a_c5000: 'Galaxy Bank', a_c5000d: 'Collect 5000 coins in total',
+    a_dg50: 'Rookie pilot', a_dg50d: 'Dodge 50 asteroids',
+    a_dg200: 'Trickster', a_dg200d: 'Dodge 200 asteroids',
+    a_dg500: 'Ace', a_dg500d: 'Dodge 500 asteroids',
+    a_dg1000: 'Maneuver legend', a_dg1000d: 'Dodge 1000 asteroids',
+    a_m10: 'Cadet', a_m10d: 'Complete 10 missions',
+    a_m25: 'Officer', a_m25d: 'Complete 25 missions',
+    a_m50: 'Admiral', a_m50d: 'Complete 50 missions',
+    a_s10: 'Small hangar', a_s10d: 'Unlock 10 ships',
+    a_s20: 'Big hangar', a_s20d: 'Unlock 20 ships',
+    a_s40: 'Whole fleet', a_s40d: 'Unlock all 47 ships',
+    a_st3: 'Consistency', a_st3d: '3-day challenge streak',
+    a_st7: 'Space week', a_st7d: '7-day challenge streak',
+    a_st30: 'Orbit veteran', a_st30d: '30-day challenge streak',
+    a_nd1000: 'Invincible', a_nd1000d: '1000 m in one run without damage',
+    a_perfect: 'Vacuum cleaner', a_perfectd: 'Collect all coins in a run (50+)',
+    a_runs100: 'Century of runs', a_runs100d: 'Complete 100 runs',
+    a_bh20: 'Hole tamer', a_bh20d: 'Escape 20 black holes in total',
+    dm_normal: 'Classic track', dm_storm: 'Asteroid storm',
+    dm_rain: 'Coin rain', dm_clean: 'No debris', dm_fast: 'Fast start',
+    dm_marathon: 'Full tank',
+    ship1: 'Rocket "Arrow"', ship2: 'Shuttle "Wind"', ship3: 'Fighter "Falcon"',
+    ship4: 'Cruiser "Thunder"', ship5: 'Probe "Seeker"', ship6: 'Pirate "Black Comet"',
+    ship7: 'Military "Bastion"', ship8: 'Racer "Photon"', ship9: 'Hauler "Ant"',
+    ship10: 'Scout "Shadow"', ship11: 'Corsair "Boarding"', ship12: 'Battleship "Titan"',
+    ship13: 'Sprinter "Lightning"', ship14: 'Transport "Caravan"', ship15: 'Interceptor "Wasp"',
+    ship16: 'UFO "Guest"', ship17: 'Dragon "Flame"', ship18: 'Whale "Leviathan"',
+    ship19: 'Crystal "Diamond"', ship20: 'Ghost "Fog"', ship21: 'Phoenix "Rebirth"',
+    ship22: 'Robot "Tinman"', ship23: 'Jellyfish "Stinger"', ship24: 'Wasp "Jab"',
+    ship25: 'Comet "Tailed"', ship26: 'Satellite "Eye"', ship27: 'Shark "Fin"',
+    ship28: 'Bolt "Discharge"', ship29: 'Vortex "Tornado"', ship30: 'Star "Sirius"',
+    ship31: 'Imperial "Flagship"', ship32: 'Quantum "Leap"', ship33: 'Plasma "Sun"',
+    ship34: 'Neutron "Core"', ship35: 'Hyper "Limit"', ship36: 'Antimatter "Gloom"',
+    ship37: 'Galaxy "Spiral"', ship38: 'Void "Zero"', ship39: 'Eternity "Aeon"',
+    ship40: 'Creator "Alpha"',
+    ship41: 'Pioneer "Dawn"', ship42: 'Tug "Oakbeam"', ship43: 'Spark "Firework"', ship44: 'Guard "Citadel"',
+    ship45: 'Emperor of the Galaxy', ship46: 'Void Shadow', ship47: 'Star Reaper',
+    loading: 'Loading…',
+    cloud_sync: 'Cloud save loaded',
+    not_enough_coins: 'Not enough coins',
+  },
+};
+
+let __lang = 'en';
+function setLang(l) { __lang = (l === 'ru' || l === 'en') ? l : 'en'; }
+function getLang() { return __lang; }
+function t(key, params) {
+  const dict = I18N[__lang] || I18N.en;
+  let s = dict[key];
+  if (s === undefined) s = I18N.en[key] !== undefined ? I18N.en[key] : key;
+  if (params) for (const k in params) s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), params[k]);
+  return s;
+}
+
+/* ===== ships.js ===== */
+/* ============================================================
+ * SPACE DASH v2 — 40 ships configuration
+ * tpl: template index (0..14) — 15 vector templates + tint.
+ * cost: in-game coins (0 = free). ach: achievement gate. reqShips: fleet gate.
+ * stats: spd = start-speed multiplier, fuel = extra fuel seconds,
+ *        mag = magnet duration multiplier, coin = coin value.
+ * ============================================================ */
+'use strict';
+
+const SHIPS = [
+  { id: 1, trait: 'stock',  tpl: 0, color: '#ff5a4e', color2: '#ffd7c2', cost: 0,    stats: { spd: 1.00, fuel: 0,  mag: 1.0, coin: 1 } },
+  { id: 2, trait: 'repair',  tpl: 1, color: '#4ea8ff', color2: '#cfe8ff', cost: 0,    stats: { spd: 1.00, fuel: 5,  mag: 1.0, coin: 1 } },
+  { id: 3, trait: 'miner',  tpl: 2, color: '#ffd23e', color2: '#fff3c4', cost: 0,    stats: { spd: 1.04, fuel: 0,  mag: 1.0, coin: 1 } },
+  { id: 4, trait: 'tanker',  tpl: 3, color: '#9b6bff', color2: '#e3d4ff', cost: 0,    stats: { spd: 0.97, fuel: 10, mag: 1.0, coin: 1 } },
+  { id: 5, trait: 'magnetolog',  tpl: 4, color: '#41e0a0', color2: '#c9ffe9', cost: 0,    stats: { spd: 1.00, fuel: 0,  mag: 1.2, coin: 1 } },
+  { id: 6, trait: 'smuggler',  tpl: 5, color: '#2b2f3a', color2: '#c9a227', cost: 300,  stats: { spd: 1.00, fuel: 0,  mag: 1.0, coin: 2 } },
+  { id: 7, trait: 'veteran',  tpl: 6, color: '#5c6b57', color2: '#b8c9a3', cost: 350,  stats: { spd: 0.98, fuel: 15, mag: 1.0, coin: 1 } },
+  { id: 8, trait: 'forsa',  tpl: 7, color: '#ff3ea5', color2: '#ffd1ec', cost: 400,  stats: { spd: 1.08, fuel: 0,  mag: 1.0, coin: 1 } },
+  { id: 9, trait: 'collector',  tpl: 8, color: '#c98b3e', color2: '#ffe6bd', cost: 450,  stats: { spd: 0.95, fuel: 20, mag: 1.0, coin: 2 } },
+  { id: 10, trait: 'scout', tpl: 9, color: '#6b7cff', color2: '#d6dcff', cost: 500,  stats: { spd: 1.02, fuel: 5,  mag: 1.3, coin: 1 } },
+  { id: 11, trait: 'smuggler', tpl: 5, color: '#7a1f1f', color2: '#ffb3b3', cost: 550, ach: 'a_dg50',  stats: { spd: 1.03, fuel: 0,  mag: 1.0, coin: 2 } },
+  { id: 12, trait: 'tanker', tpl: 6, color: '#31435c', color2: '#a8c4e8', cost: 600, ach: 'a_d500',  stats: { spd: 0.98, fuel: 20, mag: 1.0, coin: 1 } },
+  { id: 13, trait: 'forsa', tpl: 7, color: '#3effc9', color2: '#d4fff2', cost: 650, ach: 'a_c100',  stats: { spd: 1.08, fuel: 0,  mag: 1.0, coin: 1 } },
+  { id: 14, trait: 'collector', tpl: 8, color: '#8e8e93', color2: '#e8e8ed', cost: 700,  stats: { spd: 0.95, fuel: 25, mag: 1.2, coin: 1 } },
+  { id: 15, trait: 'scout', tpl: 9, color: '#ffb03e', color2: '#ffeed1', cost: 800, ach: 'a_m10',   stats: { spd: 1.04, fuel: 5,  mag: 1.0, coin: 2 } },
+  { id: 16, trait: 'lucky', tpl: 10, color: '#b9f54e', color2: '#f2ffd6', cost: 800,  ach: 'a_dg200', stats: { spd: 1.02, fuel: 10, mag: 1.4, coin: 1 } },
+  { id: 17, trait: 'bomber', tpl: 11, color: '#ff6a2b', color2: '#ffe0b3', cost: 850,  ach: 'a_d1000', stats: { spd: 1.05, fuel: 5,  mag: 1.0, coin: 2 } },
+  { id: 18, trait: 'tanker', tpl: 12, color: '#4ec9ff', color2: '#d8f4ff', cost: 900,  ach: 'a_c500',  stats: { spd: 0.98, fuel: 30, mag: 1.2, coin: 1 } },
+  { id: 19, trait: 'scout', tpl: 13, color: '#7ef9ff', color2: '#e6feff', cost: 950,  ach: 'a_m25',   stats: { spd: 1.04, fuel: 10, mag: 1.3, coin: 1 } },
+  { id: 20, trait: 'ghost', tpl: 14, color: '#b39ddb', color2: '#ede7f6', cost: 1000, ach: 'a_st3',   stats: { spd: 1.06, fuel: 5,  mag: 1.5, coin: 1 } },
+  { id: 21, trait: 'bomber', tpl: 11, color: '#ff2b5e', color2: '#ffd6e0', cost: 1050, ach: 'a_dg500', stats: { spd: 1.05, fuel: 10, mag: 1.0, coin: 2 } },
+  { id: 22, trait: 'repair', tpl: 13, color: '#9e9e9e', color2: '#e0e0e0', cost: 1100, ach: 'a_c1000', stats: { spd: 1.02, fuel: 15, mag: 1.4, coin: 2 } },
+  { id: 23, trait: 'lucky', tpl: 14, color: '#e040fb', color2: '#f8d7ff', cost: 1150, ach: 'a_st7',   stats: { spd: 1.03, fuel: 15, mag: 1.5, coin: 1 } },
+  { id: 24, trait: 'forsa', tpl: 10, color: '#ffca28', color2: '#fff8e1', cost: 1200, ach: 'a_nd1000',stats: { spd: 1.06, fuel: 10, mag: 1.2, coin: 2 } },
+  { id: 25, trait: 'tanker', tpl: 12, color: '#80d8ff', color2: '#e1f5fe', cost: 1250, ach: 'a_d5000', stats: { spd: 1.04, fuel: 20, mag: 1.3, coin: 1 } },
+  { id: 26, trait: 'collector', tpl: 3,  color: '#aeea00', color2: '#f4ff81', cost: 1300, ach: 'a_perfect',stats:{ spd: 1.00, fuel: 15, mag: 1.6, coin: 2 } },
+  { id: 27, trait: 'scout', tpl: 2,  color: '#546e7a', color2: '#cfd8dc', cost: 1350, ach: 'a_s10',   stats: { spd: 1.07, fuel: 5,  mag: 1.2, coin: 2 } },
+  { id: 28, trait: 'forsa', tpl: 7,  color: '#ffee58', color2: '#fffde7', cost: 1400, ach: 'a_dg500', stats: { spd: 1.10, fuel: 0,  mag: 1.2, coin: 2 } },
+  { id: 29, trait: 'lucky', tpl: 10, color: '#26c6da', color2: '#e0f7fa', cost: 1450, ach: 'a_m25',   stats: { spd: 1.05, fuel: 15, mag: 1.5, coin: 2 } },
+  { id: 30, trait: 'miner', tpl: 12, color: '#ff7043', color2: '#fbe9e7', cost: 1500, ach: 'a_c1000', stats: { spd: 1.06, fuel: 20, mag: 1.4, coin: 2 } },
+  { id: 31, trait: 'veteran', tpl: 6,  color: '#ffd700', color2: '#fff8dc', cost: 1600, ach: 'a_m50',   stats: { spd: 1.05, fuel: 25, mag: 1.5, coin: 2 } },
+  { id: 32, trait: 'chrono', tpl: 13, color: '#00e5ff', color2: '#e0ffff', cost: 1700, ach: 'a_dg1000',stats: { spd: 1.08, fuel: 15, mag: 1.6, coin: 2 } },
+  { id: 33, trait: 'bomber', tpl: 11, color: '#ff9100', color2: '#ffe0b2', cost: 1800, ach: 'a_c5000', stats: { spd: 1.06, fuel: 20, mag: 1.5, coin: 3 } },
+  { id: 34, trait: 'lucky', tpl: 14, color: '#d500f9', color2: '#f3e5f5', cost: 1900, ach: 'a_st7',   stats: { spd: 1.06, fuel: 25, mag: 1.7, coin: 2 } },
+  { id: 35, trait: 'forsa', tpl: 7,  color: '#76ff03', color2: '#f1f8e9', cost: 2000, ach: 'a_d5000', stats: { spd: 1.12, fuel: 10, mag: 1.5, coin: 2 } },
+  { id: 36, trait: 'ghost', tpl: 9,  color: '#37474f', color2: '#b0bec5', cost: 2100, ach: 'a_nd1000',stats: { spd: 1.08, fuel: 25, mag: 1.8, coin: 3 } },
+  { id: 37, trait: 'escort', tpl: 10, color: '#ec407a', color2: '#fce4ec', cost: 2200, ach: 'a_s20',   stats: { spd: 1.08, fuel: 25, mag: 1.8, coin: 3 } },
+  { id: 38, trait: 'chrono', tpl: 14, color: '#455a64', color2: '#cfd8dc', cost: 2300, ach: 'a_st30',  stats: { spd: 1.10, fuel: 30, mag: 2.0, coin: 3 } },
+  { id: 39, trait: 'escort', tpl: 12, color: '#ab47bc', color2: '#f3e5f5', cost: 2400, ach: 'a_d10000',stats: { spd: 1.10, fuel: 30, mag: 2.0, coin: 3 } },
+  { id: 40, trait: 'chrono', tpl: 11, color: '#ffffff', color2: '#ffd54f', cost: 2500, reqShips: 39, stats: { spd: 1.15, fuel: 40, mag: 2.0, coin: 5 } },
+  // 41-44: рекламные корабли (3 rewarded-просмотра, личный счётчик)
+  { id: 41, tpl: 9,  color: '#66d9ff', color2: '#e3f9ff', cost: 0, trait: 'scout',  adShip: true, stats: { spd: 1.05, fuel: 10, mag: 1.4, coin: 2 } },
+  { id: 42, tpl: 8,  color: '#d9a441', color2: '#ffe9c2', cost: 0, trait: 'tanker', adShip: true, stats: { spd: 0.98, fuel: 30, mag: 1.2, coin: 2 } },
+  { id: 43, tpl: 7,  color: '#ff66cc', color2: '#ffe1f4', cost: 0, trait: 'lucky',  adShip: true, stats: { spd: 1.09, fuel: 10, mag: 1.5, coin: 2 } },
+  { id: 44, tpl: 6,  color: '#66ff99', color2: '#dcffe9', cost: 0, trait: 'repair', adShip: true, stats: { spd: 1.02, fuel: 20, mag: 1.4, coin: 2 } },
+  // 45-47: премиум за голоса VK (10 / 15 / 25)
+  { id: 45, tpl: 11, color: '#ffd700', color2: '#fff8dc', cost: 0, trait: 'emperor', votes: 10, stats: { spd: 1.10, fuel: 30, mag: 1.8, coin: 3 } },
+  { id: 46, tpl: 14, color: '#6b5bff', color2: '#d9d4ff', cost: 0, trait: 'void',    votes: 15, stats: { spd: 1.12, fuel: 20, mag: 2.0, coin: 3 } },
+  { id: 47, tpl: 2,  color: '#ff2b2b', color2: '#ffd9d9', cost: 0, trait: 'reaper',  votes: 25, stats: { spd: 1.15, fuel: 25, mag: 1.6, coin: 4 } },
+];
+SHIPS.forEach(s => { s.nameKey = 'ship' + s.id; });
+/* Trait power scales with mastery stars (see game-core traitPow) */
+
+/* ===== pixels.js ===== */
+/* ============================================================
+ * SPACE DASH v3 — PIXEL ART sprite bank
+ * Hand-placed pixel maps (15×16 ships, 15×15 rocks, 4-frame coin
+ * spin, 3-frame flame & explosion). Rendered 1 px = 1 canvas px
+ * into low-res canvases; the game bakes them at an integer scale
+ * with imageSmoothing off — crisp, deliberate, human-made look.
+ * Palette chars: . transparent | K outline | C main | D dark |
+ * L light | W white | G glass | E engine metal | e engine glow
+ * ============================================================ */
+'use strict';
+
+function pShade(hex, t) {
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const target = t < 0 ? 0 : 255;
+  const k = Math.abs(t);
+  r = Math.round(r + (target - r) * k);
+  g = Math.round(g + (target - g) * k);
+  b = Math.round(b + (target - b) * k);
+  return `rgb(${r},${g},${b})`;
+}
+
+/* ---------- 10 ship hulls, 15×16 ---------- */
+const PIX_SHIPS = [
+  /* 0 rocket */ [
+    '.......K.......',
+    '......KLK......',
+    '.....KLLCK.....',
+    '.....KLCCCK....',
+    '....KLCCCCK....',
+    '....KLGGGCK....',
+    '....KLGGGCK....',
+    '....KLCCCCK....',
+    '....KLCCCCK....',
+    '...KKLCCCCKK...',
+    '.KDDKCCCCCKDDK.',
+    '.KDDKCCCCCKDDK.',
+    '...KKCCCCCKK...',
+    '....KEEEEK.....',
+    '.....EeEeE.....',
+    '......eee......'],
+  /* 1 shuttle */ [
+    '.......K.......',
+    '......KLK......',
+    '.....KLLCK.....',
+    '.....KLCCCK....',
+    '....KLGGGCK....',
+    '....KLGGGCK....',
+    '....KLCCCCK....',
+    '...KKLCCCCKK...',
+    '..KDDLCCCCKDDK.',
+    '.KDDDLCCCCKDDDK',
+    '.KDD.KCCCCK.DDK',
+    '.....KCCCCK....',
+    '....KKCCCCKK...',
+    '....KEEEEK.....',
+    '....EeEEeE.....',
+    '.....eeee......'],
+  /* 2 fighter */ [
+    '.......K.......',
+    '......KLK......',
+    '......KCK......',
+    '.....KLCK......',
+    '.....KGCK......',
+    '....KLGCCCK....',
+    '...KKLGCCKKK...',
+    '..KDDLCCKDDK...',
+    '.KDDDLCCCKDDK..',
+    'KDDDDLCCKDDDDK.',
+    'KDDD.LCCK.DDDK.',
+    '.....LCCK......',
+    '.....KEEK......',
+    '....EEeEE......',
+    '....EeeeE......',
+    '.....eee.......'],
+  /* 3 cruiser */ [
+    '......KKK......',
+    '.....KLLLK.....',
+    '.....KLCCCK....',
+    '....KLLCCCK....',
+    '....KGGGCCK....',
+    '...KKLCCCCKK...',
+    '..KDDKCCCKDDK..',
+    '..KDDKCCCKDDK..',
+    '..KDDKCCCKDDK..',
+    '..KDDKCCCKDDK..',
+    '...K.KCCCK.K...',
+    '...KKEEECKK....',
+    '....EeEEeE.....',
+    '....ee.Eee.....',
+    '.....e..e......',
+    '...............'],
+  /* 4 probe */ [
+    '.......K.......',
+    '......KeK......',
+    '......KEK......',
+    '.....KLLLK.....',
+    '....KLLDLLK....',
+    '.....KCCCK.....',
+    '....KLCCCK.....',
+    '...KKLGCCKK....',
+    '..KDDKGGCKDDK..',
+    '..KDDKCCCKDDK..',
+    '...K.KCCCK.K...',
+    '.....KEEEK.....',
+    '.....KEEEK.....',
+    '......EeE......',
+    '......ee.......',
+    '...............'],
+  /* 5 pirate */ [
+    '.......K.......',
+    '......KDK......',
+    '.....KDCCK.....',
+    '.....KCCCK.....',
+    '....KWWCWCK....',
+    '....KWKCWCK....',
+    '...KKCCCCCKK...',
+    '..KDDKCCCKDDK..',
+    '.KDDDKCCKDDDK..',
+    '.KDD.KCCK.DDK..',
+    '.....KCCK......',
+    '....KDCCDK.....',
+    '....KEEEEK.....',
+    '....KEEEEK.....',
+    '.....EeEe......',
+    '......ee.......'],
+  /* 6 military */ [
+    '...............',
+    '......KKK......',
+    '.....KLLCK.....',
+    '.....KLCCCK....',
+    '....KLLCCCK....',
+    '..KKKLGGGCKKK..',
+    '.KDDKKCCCCKKDDK',
+    '.KDDKCCCCCKDDK.',
+    '.KKKKCCCCCKKKK.',
+    '....KCCCCCK....',
+    '....KCCCCCK....',
+    '....KKCCCKK....',
+    '....KEEEEK.....',
+    '....EeEEeE.....',
+    '.....eeee......',
+    '...............'],
+  /* 7 racer */ [
+    '.......K.......',
+    '......KLK......',
+    '.....KLLCK.....',
+    '.....KLCCCK....',
+    '....KLGGGCK....',
+    '....KLGGGCK....',
+    '....KLCCCCK....',
+    '...K.KCCCCK.K..',
+    '..KK.KCCCCK.KK.',
+    '.KDDKKCCCCKKDDK',
+    '.KDDDKKKKKDDDK.',
+    '.KKKK.....KKKK.',
+    '....KEEEEK.....',
+    '....EeEEeE.....',
+    '.....eeee......',
+    '...............'],
+  /* 8 cargo */ [
+    '....KKKKKKK....',
+    '....KLLLLLK....',
+    '....KLCCCCK....',
+    '...KKLCCCCKKK..',
+    '..KDDKCCCCCKDDK',
+    '..KDDKCKCCKDDK.',
+    '..KDDKCCCCCKDDK',
+    '..KDDKCKCCKDDK.',
+    '..KDDKCCCCCKDDK',
+    '...KKKCCCCCKKK.',
+    '.....KEEEEK....',
+    '.....EeEEeE....',
+    '......eeee.....',
+    '...............',
+    '...............',
+    '...............'],
+  /* 9 scout */ [
+    '.......K.......',
+    '......KLK......',
+    '......KCK......',
+    '.....KLCK......',
+    '.....KGCK......',
+    '..K..KLCCCK..K.',
+    '.KK..KLGCCK..KK',
+    '..KK.KLCCCK.KK.',
+    '....KKLCCCKK...',
+    '...K.DLCCK.DK..',
+    '..KK..KCCK..KK.',
+    '..K...KEEK...K.',
+    '......EeE......',
+    '......ee.......',
+    '...............',
+    '...............'],
+  /* 10 ufo */ [
+    '...............',
+    '...............',
+    '.....KKKKK.....',
+    '....KGGGGGK....',
+    '...KGGWGGGGK...',
+    '...KKKKKKKKK...',
+    '..KLLCCCCCCLK..',
+    '.KLCeCCeCCeCK..',
+    '.KDCCCCCCCCK...',
+    '..KKDDDDDDKK...',
+    '.....KEEK......',
+    '....KEeEK......',
+    '.....eee.......',
+    '...............',
+    '...............',
+    '...............'],
+  /* 11 dragon */ [
+    '....K.....K....',
+    '...KLK...KDK...',
+    '...KLLKKKDK....',
+    '....KLLLCK.....',
+    '....KLeLeCK....',
+    '...KKLCCCKKK...',
+    '..KDDLCCKDDDK..',
+    '.KDDDLCCKDDDDK.',
+    '.KDD.LCCK.DDDK.',
+    '..K..KCCK..K...',
+    '.....KCCCK.....',
+    '.....KCCK......',
+    '....KDCCDK.....',
+    '....KEEEEK.....',
+    '.....EeEe......',
+    '......ee.......'],
+  /* 12 whale */ [
+    '...............',
+    '.....KKKK......',
+    '....KLLLLK.....',
+    '...KLLCCCCK....',
+    '...KLCCCCCK....',
+    '..KKGCCCGCCKK..',
+    '.KDDKCCCCCDDK..',
+    '.KDDKCCCCCDDK..',
+    '..K.KDCCCK.K...',
+    '....KDCCCK.....',
+    '...KKDCCCKK....',
+    '..KDDKDDKDDK...',
+    '..KDDDDDKDDK...',
+    '...KKDDDKKK....',
+    '...............',
+    '...............'],
+  /* 13 crystal */ [
+    '.......K.......',
+    '......KLK......',
+    '......KLK......',
+    '.....KLLCK.....',
+    '.....KLWCK.....',
+    '....KLLWCCK....',
+    '....KLWWCCK....',
+    '...KLLWCCCCK...',
+    '...KLWCCCCCK...',
+    '...KKWCCCCKK...',
+    '....KKCCCKK....',
+    '.....KCCCK.....',
+    '.....KDCK......',
+    '......KK.......',
+    '...............',
+    '...............'],
+  /* 14 ghost */ [
+    '.......K.......',
+    '......KLK......',
+    '.....KLLCK.....',
+    '.....KLCCCK....',
+    '....KLLCCCK....',
+    '....KLGGGCK....',
+    '....KGGGGCK....',
+    '....KLCCCCK....',
+    '....KLCCCCK....',
+    '....KLCCCCK....',
+    '....KLCCCCK....',
+    '....KKCCCKK....',
+    '...KK.CK.KK....',
+    '..K...K...K....',
+    '...............',
+    '...............'],
+];
+
+/* ---------- rocks 15×15 (3 variants) ---------- */
+const PIX_AST = [
+  [
+    '...............',
+    '.....KKKK......',
+    '...KKLLLLKK....',
+    '..KLLLCCCCLK...',
+    '..KLLCCCCCCK...',
+    '.KLLCCDDCCCK...',
+    '.KLCCDDDCCLK...',
+    '.KLCCCCDCCLK...',
+    '.KKCCCDCCCCK...',
+    '..KCCDDCCCK....',
+    '..KCCCCCCKK....',
+    '...KCCCDCK.....',
+    '....KKKKK......',
+    '...............',
+    '...............'],
+  [
+    '...............',
+    '......KKKK.....',
+    '....KKLLLLKK...',
+    '...KLLLCCCCK...',
+    '..KLLCCCCCCK...',
+    '..KLCCCDCCCKK..',
+    '.KLLCDDDCCCCK..',
+    '.KLCCCCCDCCCK..',
+    '.KKCCDDCCCCK...',
+    '..KCCCCDCCK....',
+    '..KKCCCCCK.....',
+    '...KKCCCKK.....',
+    '.....KKKK......',
+    '...............',
+    '...............'],
+  [
+    '...............',
+    '....KKKKK......',
+    '..KKLLLLLKK....',
+    '.KLLLCCCCCK....',
+    '.KLLCCCDCCCK...',
+    'KLCCCDCCCCK....',
+    'KLCCCCDDCCK....',
+    'KLCCDDCCCK.....',
+    'KKCCCCDCCK.....',
+    '.KCCDDCCK......',
+    '.KKCCCCCKK.....',
+    '..KKKCCCK......',
+    '....KKKK.......',
+    '...............',
+    '...............'],
+];
+
+const PIX_DEBRIS = [
+  '...............',
+  '......KK.......',
+  '....KKLLKK.....',
+  '...KLLLWCLK....',
+  '..KLLWWCCCK....',
+  '..KLWCCCCCK....',
+  '.KLLCCCCDCK....',
+  '.KLCCCDDECK....',
+  '.KKCCDDEECK....',
+  '..KCCDEEeCK....',
+  '..KKCDDECKK....',
+  '...KKDDCK......',
+  '.....KKK.......',
+  '...............',
+  '...............'];
+
+/* coin spin: 4 frames (10×10) */
+const PIX_COIN = [
+  [
+    '...KKKK...',
+    '..KLLLLK..',
+    '.KLLYYLLK.',
+    '.KLYDDYLK.',
+    'KLYYDDYYLK',
+    'KLYYDDYYLK',
+    '.KLYDDYLK.',
+    '.KLLYYLLK.',
+    '..KDDDDK..',
+    '...KKKK...'],
+  [
+    '...KKKK...',
+    '..KLLYK...',
+    '..KLYYK...',
+    '..KYDDK...',
+    '..KYDDYK..',
+    '..KYDDYK..',
+    '..KYDDK...',
+    '..KLYYK...',
+    '..KDDYK...',
+    '...KKKK...'],
+  [
+    '...KK...',
+    '..KLYK..',
+    '..KYDK..',
+    '..KYDK..',
+    '..KYDK..',
+    '..KYDK..',
+    '..KYDK..',
+    '..KLYK..',
+    '..KDK...',
+    '...KK...'],
+  [
+    '...KKKK...',
+    '...KYYK...',
+    '..KYYLK...',
+    '..KDDLK...',
+    '.KYDDLK...',
+    '.KYDDLK...',
+    '..KDDLK...',
+    '..KYYLK...',
+    '...KYYK...',
+    '...KKKK...'],
+];
+
+/* items 12×12 */
+const PIX_FUEL = [
+  '............',
+  '....KKKK....',
+  '....KEEK....',
+  '..KKKKKKKK..',
+  '.KLLCCCCCK..',
+  '.KLCCCCCCK..',
+  '.KLCKWWKCK..',
+  '.KLCKWWKCK..',
+  '.KLCKWWKCK..',
+  '.KLCCKKKCK..',
+  '.KKCCCCCKK..',
+  '..KKKKKKK...'];
+const PIX_SHIELD = [
+  '....KKKK....',
+  '..KKLLLLKK..',
+  '.KLLWWWWLLK.',
+  '.KLWGGGGWLK.',
+  'KLWGGGGGGWLK',
+  'KLGGLGGLGGLK',
+  'KLGGGGGGGGLK',
+  '.KLGGGGGGLK.',
+  '.KLLGGGGLLK.',
+  '..KLLGGLLK..',
+  '...KLLLLK...',
+  '....KKKK....'];
+const PIX_MAGNET = [
+  '............',
+  '..KKKKKKKK..',
+  '.KRRRRRRRRK.',
+  '.KRRRRRRRRK.',
+  '.KRRKKKKRRK.',
+  '.KRK....KRK.',
+  '.KRK....KRK.',
+  '.KWK....KWK.',
+  '.KWK....KWK.',
+  '.KKK....KKK.',
+  '............',
+  '............'];
+const PIX_DOUBLE = [
+  '............',
+  '....KKKK....',
+  '..KKYYYYKK..',
+  '.KYYWWWWYYK.',
+  'KYWKYYYYKWYK',
+  'KYWKYYYYKWYK',
+  'KYYKKYYKKYYK',
+  '.KYYKKKKYYK.',
+  '..KKYYYYKK..',
+  '....KKKK....',
+  '............',
+  '............'];
+
+/* flame 3 frames 7×6 */
+const PIX_FLAME = [
+  [
+    '.EE.EE.',
+    'EeeEeeE',
+    'Eeeeeee',
+    '.EeeeE.',
+    '..EeE..',
+    '...e...'],
+  [
+    'EE.E.EE',
+    'EeEEeEE',
+    'EeeeeeE',
+    '.EeeE..',
+    '..EeE..',
+    '...E...'],
+  [
+    '.E.E.E.',
+    'EEeEeEE',
+    'EeeeeeE',
+    '.EeeeE.',
+    '..EeE..',
+    '...e...'],
+];
+
+/* explosion 3 frames 15×15 */
+const PIX_BOOM = [
+  [
+    '...............',
+    '.......Y.......',
+    '......YWY......',
+    '.....YW WY.....'.replace(' ', 'W'),
+    '....YWWWWY.....',
+    '...YWWRRWWY....',
+    '..YWWRRRRWWY...',
+    '..YWWRRRRWWY...',
+    '...YWWRRWWY....',
+    '....YWWWWY.....',
+    '.....YWWY......',
+    '......YY.......',
+    '...............',
+    '...............',
+    '...............'],
+  [
+    '...............',
+    '..R....Y....R..',
+    '...R..YWY..R...',
+    '....RYWWWYR....',
+    '...RYWWRRWWYR..',
+    '..RYWWRRRRWWYR.',
+    '.YYWWRRRRRRWWYY',
+    '.YYWWRRRRRRWWYY',
+    '..RYWWRRRRWWYR.',
+    '...RYWWRRWWYR..',
+    '....RYWWWYR....',
+    '...R..YWY..R...',
+    '..R....Y....R..',
+    '...............',
+    '...............'],
+  [
+    '...............',
+    '.D....D.D....D.',
+    '...D..DDD..D...',
+    '....DDDDDDD....',
+    '...DDKDDKDDD...',
+    '..DDKDDDDKDDD..',
+    '.DDDDDKDDDDDDD.',
+    '.DDDDDKDDDDDDD.',
+    '..DDKDDDDKDDD..',
+    '...DDKDDKDDD...',
+    '....DDDDDDD....',
+    '...D..DDD..D...',
+    '.D....D.D....D.',
+    '...............',
+    '...............'],
+];
+
+/* ---------- tiny UI icons 8×8 (rendered to inline SVG rects) ---------- */
+const PIX_ICON = {
+  coin: [
+    '..KKKK..',
+    '.KLLLLK.',
+    'KLLYYLLK',
+    'KLYDDYLK',
+    'KLYDDYLK',
+    'KLLYYLLK',
+    '.KDDDDK.',
+    '..KKKK..'],
+  shield: [
+    '.KKKKKK.',
+    'KLLGGGLK',
+    'KLGGGGLK',
+    'KLGGGGLK',
+    '.KLGGLK.',
+    '.KLGGLK.',
+    '..KLLK..',
+    '...KK...'],
+  magnet: [
+    '.KKKKKK.',
+    'KRRRRRRK',
+    'KRKKKKRK',
+    'KRK..KRK',
+    'KRK..KRK',
+    'KWK..KWK',
+    'KWK..KWK',
+    'KKK..KKK'],
+  fuel: [
+    '..KKKK..',
+    '..KEEK..',
+    '.KKKKKK.',
+    'KLCCCCCK',
+    'KLKWWKCK',
+    'KLKWWKCK',
+    'KLCCCCCK',
+    '.KKKKKK.'],
+  flame: [
+    '...Y....',
+    '..YY....',
+    '..YYY...',
+    '.YYRY...',
+    '.YRRRY..',
+    'YYRRRYY.',
+    '.YRRRY..',
+    '..RRR...'],
+  lock: [
+    '..KKKK..',
+    '.K....K.',
+    '.K....K.',
+    'KKKKKKKK',
+    'KKKDDKKK',
+    'KKKDDKKK',
+    'KKKKKKKK',
+    'KKKKKKKK'],
+  trophy: [
+    'KKKKKKKK',
+    'KYYYYYYK',
+    'K.YYYY.K',
+    '..KYYK..',
+    '..KYYK..',
+    '.KYYYYK.',
+    '.KYYYYK.',
+    '..KKKK..'],
+  gear: [
+    '..K..K..',
+    '.KKKKKK.',
+    'KK.KK.KK',
+    '..KKKK..',
+    '..KKKK..',
+    'KK.KK.KK',
+    '.KKKKKK.',
+    '..K..K..'],
+  back: [
+    '....K...',
+    '...KK...',
+    '..KKK...',
+    '.KKKKKKK',
+    '.KKKKKKK',
+    '..KKK...',
+    '...KK...',
+    '....K...'],
+  play: [
+    '.KK.....',
+    '.KKK....',
+    '.KKKK...',
+    '.KKKKK..',
+    '.KKKK...',
+    '.KKK....',
+    '.KK.....',
+    '........'],
+  star: [
+    '...KK...',
+    '...KK...',
+    '.KKKKKK.',
+    '..KKKK..',
+    '..KKKK..',
+    '.KK..KK.',
+    'K......K',
+    '........'],
+  skull: [
+    '.KKKKKK.',
+    'KKKKKKKK',
+    'K.KK.KKK',
+    'KKKKKKKK',
+    'K.KKK.KK',
+    '.KKKKKK.',
+    '..KKKK..',
+    '........'],
+};
+
+
+/* black hole: 2 anim frames 15×15 */
+const PIX_HOLE = [
+  [
+    '...............',
+    '.....PPPP......',
+    '...PP....PP....',
+    '..P...KKK..P...',
+    '..P..KKKKK.P...',
+    '.P..KKKKKKK.P..',
+    '.P.KKKKKKKKKP..',
+    '.P.KKKKKKKKKP..',
+    '.P..KKKKKKK.P..',
+    '..P..KKKKK.P...',
+    '..P...KKK..P...',
+    '...PP....PP....',
+    '.....PPPP......',
+    '...............',
+    '...............'],
+  [
+    '...............',
+    '......PP.......',
+    '...PP....PP....',
+    '..P...KKKK.P...',
+    '..P..KKKKKK.P..',
+    '.P..KKKKKKKK.P.',
+    '.P.KKKKKKKKKKP.',
+    '.P.KKKKKKKKKKP.',
+    '.P..KKKKKKKK.P.',
+    '..P..KKKKKK.P..',
+    '..P...KKKK.P...',
+    '...PP....PP....',
+    '......PP.......',
+    '...............',
+    '...............'],
+];
+
+/* tutorial swipe arrow 15×8 */
+const PIX_ARROW = [
+  '...............',
+  '..K.........K..',
+  '.KK...KKK...KK.',
+  'KKK..KKKKK..KKK',
+  'KK..KKKKKKK..KK',
+  '...KKKKKKKKK...',
+  '.....KKKKK.....',
+  '...............'];
+
+
+/* ---- v4 world objects ---- */
+const PIX_PILLAR = [
+  '....KKKKKKK....',
+  '...KLLLLLLLK...',
+  '...KLCCCCCCK...',
+  '...KLCDDDCCK...',
+  '...KLCCCCCCK...',
+  '...KLCDDDCCK...',
+  '...KLCCCCCCK...',
+  '...KLCDDDCCK...',
+  '...KLCCCCCCK...',
+  '...KLCDDDCCK...',
+  '...KLCCCCCCK...',
+  '...KLCDDDCCK...',
+  '...KLCCCCCCK...',
+  '...KKKKKKKKK...',
+  '...............',
+  '...............'];
+const PIX_BOOST = [
+  '............',
+  '.....KK.....',
+  '....KWWK....',
+  '...KWWWWK...',
+  '....KWWK....',
+  '...KWWWWK...',
+  '....KWWK....',
+  '..KKWWWWKK..',
+  '.KGGWWWWGGK.',
+  '.KGGGWWGGGK.',
+  '..KKGGGGKK..',
+  '....KKKK....'];
+const PIX_PORTAL = [
+  '....KKKK....',
+  '..KKPPPPKK..',
+  '.KPPWWWWPPK.',
+  '.KPWWPPWWPK.',
+  'KPWPP..PPWPK',
+  'KPWP....PWPK',
+  'KPWP....PWPK',
+  'KPWPP..PPWPK',
+  '.KPWWPPWWPK.',
+  '.KPPWWWWPPK.',
+  '..KKPPPPKK..',
+  '....KKKK....'];
+const PIX_TRADER = [
+  '...............',
+  '....KKKKKKK....',
+  '...KCCCCCCK....',
+  '..KCCWWWCCCK...',
+  '.KCCWYYYWCCCK..',
+  '.KCCWYYYWCCCK..',
+  '..KCCWWWCCCK...',
+  '...KCCCCCCK....',
+  '....KEEE EK....'.replace(' ', ''),
+  '.....EeEe......',
+  '...............',
+  '...............'];
+const PIX_DRONE = [
+  '.KK....KK.',
+  'KeeK..KeeK',
+  '.KKKKKKKK.',
+  '..KCCCCK..',
+  '..KCeCCK..',
+  '...KKKK...',
+  '....ee....',
+  '..........'];
+const PIX_ICON2 = {
+  bomb: [
+    '......KK',
+    '.....KeK',
+    '....KeK.',
+    '..KKKK..',
+    '.KDDDK..',
+    'KDDDDDK.',
+    'KDDDDDK.',
+    '.KKKKK..'],
+  clock: [
+    '..KKKK..',
+    '.KGGGGK.',
+    'KGGKGGGK',
+    'KGKGGGGK',
+    'KGKKGGGK',
+    'KGGGGGGK',
+    '.KGGGGK.',
+    '..KKKK..'],
+  od: [
+    '...YY...',
+    '..YYYY..',
+    '.YYRYY..',
+    '.YRRRY..',
+    'YYRRRYY.',
+    'YYRRRYY.',
+    '.YRRRY..',
+    '..YYY...'],
+  chest: [
+    '........',
+    '.KKKKKK.',
+    'KYYYYYYK',
+    'KKKKKKKK',
+    'KYYKKYYK',
+    'KYYKKYYK',
+    'KKKKKKKK',
+    '........'],
+  quest: [
+    'KKKKKKKK',
+    'KYYYYYYK',
+    'KYKKKKYK',
+    'KYKYYKYK',
+    'KYKYYKYK',
+    'KYKKKKYK',
+    'KYYYYYYK',
+    'KKKKKKKK'],
+};
+
+/* ---------- renderer ---------- */
+function pixCanvas(rows, pal) {
+  const h = rows.length;
+  const w = Math.max(...rows.map(r => r.length));
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  for (let y = 0; y < h; y++) {
+    const row = rows[y];
+    for (let x = 0; x < row.length; x++) {
+      const ch = row[x];
+      if (ch === '.' || ch === ' ') continue;
+      const col = pal[ch];
+      if (!col) continue;
+      g.fillStyle = col;
+      g.fillRect(x, y, 1, 1);
+    }
+  }
+  return c;
+}
+function shipPal(color) {
+  return {
+    K: '#0c1024', C: color, D: pShade(color, -0.45), L: pShade(color, 0.42),
+    W: '#ffffff', G: '#a8ecff', E: '#2a3350', e: '#8fd8ff',
+  };
+}
+function buildPixelSprites(SPR) {
+  SPR.px_ship = PIX_SHIPS;              // maps kept; baked per-ship with tint in game-core
+  SPR.px_ast = PIX_AST;
+  SPR.px_debris = PIX_DEBRIS;
+  SPR.px_coin = PIX_COIN;
+  SPR.px_fuel = PIX_FUEL;
+  SPR.px_shield = PIX_SHIELD;
+  SPR.px_magnet = PIX_MAGNET;
+  SPR.px_double = PIX_DOUBLE;
+  SPR.px_flame = PIX_FLAME;
+  SPR.px_boom = PIX_BOOM;
+  SPR.px_icon = PIX_ICON;
+  SPR.px_hole = PIX_HOLE;
+  SPR.px_arrow = PIX_ARROW;
+  SPR.px_pillar = PIX_PILLAR;
+  SPR.px_boost = PIX_BOOST;
+  SPR.px_portal = PIX_PORTAL;
+  SPR.px_trader = PIX_TRADER;
+  SPR.px_drone = PIX_DRONE;
+  Object.assign(SPR.px_icon, PIX_ICON2);
+  SPR.shipPal = shipPal;
+  SPR.pixCanvas = pixCanvas;
+}
+/* arbitrary pixel map → inline SVG (e.g. tutorial arrow) */
+function pixMapSVG(map, size, pal) {
+  const h = map.length, w = Math.max(...map.map(r => r.length));
+  const palette = Object.assign({ K: '#9ef0ff' }, pal || {});
+  let rects = '';
+  for (let y = 0; y < h; y++) for (let x = 0; x < map[y].length; x++) {
+    const ch = map[y][x];
+    if (ch === '.' || ch === ' ') continue;
+    rects += `<rect x="${x}" y="${y}" width="1" height="1" fill="${palette[ch] || palette.K}"/>`;
+  }
+  return `<svg width="${size}" height="${Math.round(size * h / w)}" viewBox="0 0 ${w} ${h}" shape-rendering="crispEdges" aria-hidden="true">${rects}</svg>`;
+}
+/* inline-SVG pixel icon for DOM UI (crisp, no emoji) */
+function pixIconSVG(name, size, paletteOverride) {
+  const map = PIX_ICON[name];
+  if (!map) return '';
+  const pal = Object.assign({
+    K: '#0c1024', L: '#cfe3ff', Y: '#ffd76a', D: '#8a5d00', G: '#7edcff',
+    R: '#ff5a5a', W: '#ffffff', E: '#2a3350', C: '#e0503c',
+  }, paletteOverride || {});
+  let rects = '';
+  for (let y = 0; y < map.length; y++) {
+    for (let x = 0; x < map[y].length; x++) {
+      const ch = map[y][x];
+      if (ch === '.' || ch === ' ') continue;
+      rects += `<rect x="${x}" y="${y}" width="1" height="1" fill="${pal[ch]}"/>`;
+    }
+  }
+  return `<svg class="pic" width="${size}" height="${size}" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true">${rects}</svg>`;
+}
+
+/* ===== generator.js ===== */
+/* ============================================================
+ * SPACE DASH v2 — procedural obstacle generator
+ * PASSABILITY GUARANTEES:
+ *  G1: a row never blocks all 3 lanes (max 2 static blocks, and
+ *      rows with moving hazards (debris/black hole) block only 1).
+ *  G2: when rows come fast (time gap < 0.65 s), the free-lane set
+ *      always overlaps the previous row's free-lane set.
+ * All rows are recorded in a ring buffer for QA autotests.
+ * Deterministic when a seed is given (daily challenge).
+ * ============================================================ */
+'use strict';
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+class Generator {
+  constructor(opts) {
+    opts = opts || {};
+    this.rnd = mulberry32(opts.seed || ((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0));
+    this.mod = opts.mod || 'normal';
+    this.nextRowDist = 16;
+    this.lastFree = [0, 1, 2];
+    this.canAt = 22;
+    this.puAt = 50;
+    this.gateAt = 55;
+    this.evAt = 70;
+    this.evKind = 0;
+    this.density = opts.density || 1;
+    this.rows = [];
+    this.rowCount = 0;
+  }
+
+  static intervalTime(t, mod, wave) {
+    let it;
+    if (t < 15) it = 1.55 - t * 0.014;                 // 1.55 → 1.34 (hook)
+    else if (t < 45) it = 1.34 - (t - 15) * 0.011;     // → 1.01
+    else it = Math.max(0.45, 1.01 - (t - 45) * 0.0052); // → 0.45 (~2.5 min)
+    if (mod === 'storm') it *= 0.82;
+    if (mod === 'fast') it *= 0.92;
+    if (wave) it *= 0.62;                              // storm wave
+    return it;
+  }
+
+  update(travelled, t, spd, lookahead, wave, density) {
+    const out = [];
+    const horizon = travelled + (lookahead || 30);
+    let safety = 0;
+    while (this.nextRowDist <= horizon && safety++ < 64) {
+      const tRow = t + (this.nextRowDist - travelled) / Math.max(1, spd);
+      const row = this.makeRow(this.nextRowDist, tRow, !!wave);
+      out.push(row);
+      this.rowCount++;
+      const gap = Math.max(3.6, spd * Generator.intervalTime(tRow, this.mod, wave) / (density || this.density || 1));
+      this.rows.push({ dist: row.dist, blocked: row.blocked.slice(), free: row.free.slice(), gap, tRow, spd });
+      void wave;
+      if (this.rows.length > 500) this.rows.shift();
+      this.nextRowDist += gap;
+    }
+    return out;
+  }
+
+  _freeOf(blocked) { return [0, 1, 2].filter(l => blocked.indexOf(l) === -1); }
+
+  makeRow(dist, t, wave) {
+    const rnd = this.rnd;
+    const storm = this.mod === 'storm' || !!wave;
+    const clean = this.mod === 'clean';
+    const rain = this.mod === 'rain';
+
+    let blockCount;
+    if (t < 15) blockCount = rnd() < 0.8 ? 1 : 0;
+    else if (t < 45) blockCount = rnd() < (storm ? 0.45 : 0.62) ? 1 : 2;
+    else blockCount = rnd() < (storm ? 0.25 : 0.38) ? 1 : 2;
+    if (storm && t >= 15 && blockCount === 1 && rnd() < 0.35) blockCount = 2;
+    if (blockCount > 2) blockCount = 2;
+
+    let blocked = [];
+    const pool = [0, 1, 2];
+    for (let i = 0; i < blockCount; i++) blocked.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
+
+    const strict = Generator.intervalTime(t, this.mod, wave) < 0.65;
+    let free = this._freeOf(blocked);
+    if (strict && blocked.length && !free.some(f => this.lastFree.indexOf(f) !== -1)) {
+      const keep = this.lastFree[Math.floor(rnd() * this.lastFree.length)];
+      blocked = blocked.filter(b => b !== keep);
+      free = this._freeOf(blocked);
+    }
+
+    const obstacles = [];
+    if (blocked.length) {
+      let moving = null;
+      for (const lane of blocked) {
+        const r = rnd();
+        let type = 'asteroid';
+        if (t >= 45 && r < 0.12) type = 'blackhole';
+        else if (!clean && t >= 20 && r < 0.34) type = 'debris';
+        if (type !== 'asteroid') { moving = { type, lane }; break; }
+      }
+      // late game: paired debris wall (still ≤2 blocked lanes → G1 holds)
+      if (!moving && !clean && t >= 90 && blocked.length === 2 && rnd() < 0.22) {
+        obstacles.push({ type: 'debris', lane: blocked[0], drift: (rnd() < 0.5 ? -1 : 1) * (0.3 + rnd() * 0.2) });
+        obstacles.push({ type: 'debris', lane: blocked[1], drift: (rnd() < 0.5 ? -1 : 1) * (0.3 + rnd() * 0.2) });
+        this.lastFree = free;
+        const items2 = [];
+        void items2;
+        return this._finishRow(dist, blocked, free, obstacles, t, rain);
+      }
+      if (moving) {
+        obstacles.push({
+          type: moving.type, lane: moving.lane,
+          drift: moving.type === 'debris' ? (rnd() < 0.5 ? -1 : 1) * (0.26 + rnd() * 0.14) : 0,
+        });
+        blocked = [moving.lane];
+        free = this._freeOf(blocked);
+      } else {
+        for (const lane of blocked) obstacles.push({ type: 'asteroid', lane, drift: 0 });
+      }
+    }
+    this.lastFree = free;
+
+    // ---- gate event (~every 45 s): pillar + reward corridor ----
+    if (t >= this.gateAt) {
+      this.gateAt = t + 45;
+      const side = rnd() < 0.5 ? 2 : 0;            // pillar lane
+      const gObs = [{ type: 'pillar', lane: side, drift: 0 }];
+      const gItems = [];
+      const lanes = [0, 1, 2].filter(l => l !== side);
+      if (rnd() < 0.5) {
+        for (const ln of lanes) for (let i = 0; i < 4; i++) gItems.push({ type: 'coin', lane: ln, d: dist + 1 + i * 0.9 });
+      } else {
+        for (const ln of lanes) gItems.push({ type: 'boost', lane: ln, d: dist + 2 });
+        for (let i = 0; i < 3; i++) gItems.push({ type: 'coin', lane: lanes[i % 2], d: dist + 4 + i * 0.9 });
+      }
+      this.lastFree = lanes;
+      return { dist, blocked: [side], free: lanes, obstacles: gObs, items: gItems };
+    }
+    // ---- trader / portal (~every 65 s) ----
+    if (t >= this.evAt) {
+      this.evAt = t + 65;
+      this.evKind ^= 1;
+      const lane = free[Math.floor(rnd() * free.length)] ?? 1;
+      const evItems = [{ type: this.evKind ? 'portal' : 'trader', lane, d: dist + 4 }];
+      return this._finishRow(dist, blocked, free, obstacles.concat([]), t, rain, evItems);
+    }
+    return this._finishRow(dist, blocked, free, obstacles, t, rain);
+  }
+
+  _finishRow(dist, blocked, free, obstacles, t, rain, extra) {
+    const rnd = this.rnd;
+    const items = (extra || []).slice();
+    const safe = free.filter(f => !obstacles.some(o => o.type === 'debris' && Math.abs(o.lane - f) < 1));
+    const pickLane = safe.length ? safe : free;
+    const rl = () => pickLane[Math.floor(rnd() * pickLane.length)];
+
+    const coinChance = t < 15 ? 0.92 : (rain ? 0.95 : 0.6);
+    if (pickLane.length && rnd() < coinChance) {
+      const lane = rl();
+      const n = t < 15 ? 4 + Math.floor(rnd() * 2) : 3 + Math.floor(rnd() * 3);
+      for (let i = 0; i < n; i++) items.push({ type: 'coin', lane, d: dist + i * 0.95 });
+    }
+    if (t >= this.canAt) {
+      this.canAt = t + 25 + rnd() * 10;
+      if (pickLane.length) items.push({ type: 'fuel', lane: rl(), d: dist + 2.1 });
+    }
+    if (t >= this.puAt) {
+      this.puAt = t + 45 + rnd() * 25;
+      const kinds = ['shield', 'magnet', 'double'];
+      if (pickLane.length) items.push({ type: kinds[Math.floor(rnd() * 3)], lane: rl(), d: dist + 3.3 });
+    }
+    return { dist, blocked, free, obstacles, items };
+  }
+}
+
+/* ===== platform-local.js ===== */
+/* ============================================================
+ * SPACE DASH v2 — LocalAdapter (no SDK: debug, adblockers, offline)
+ * ============================================================ */
+'use strict';
+
+const LocalAdapter = {
+  name: 'local',
+  _cbs: {},
+  _store: null,
+  init() {
+    try { this._store = window.localStorage; } catch (e) { this._store = null; }
+    return Promise.resolve();
+  },
+  ready() { return Promise.resolve(); },
+  gameplayStart() {},
+  gameplayStop() {},
+  on(ev, cb) { (this._cbs[ev] = this._cbs[ev] || []).push(cb); },
+  off(ev, cb) {
+    const a = this._cbs[ev]; if (!a) return;
+    const i = a.indexOf(cb); if (i >= 0) a.splice(i, 1);
+  },
+  _emit(ev, arg) { (this._cbs[ev] || []).slice().forEach(cb => { try { cb(arg); } catch (e) {} }); },
+  interstitial(cbOk, cbErr) { setTimeout(() => cbOk && cbOk(), 30); },
+  rewarded(cbReward, cbClose, cbErr) {
+    setTimeout(() => { cbReward && cbReward(); cbClose && cbClose(true); }, 30);
+  },
+  save(data) {
+    try { this._store && this._store.setItem('sd_cloud_mock', JSON.stringify(data)); } catch (e) {}
+    return Promise.resolve(true);
+  },
+  load() {
+    try {
+      const raw = this._store && this._store.getItem('sd_cloud_mock');
+      return Promise.resolve(raw ? JSON.parse(raw) : null);
+    } catch (e) { return Promise.resolve(null); }
+  },
+  getLang() {
+    const n = (navigator.language || 'en').slice(0, 2).toLowerCase();
+    return (n === 'ru') ? 'ru' : 'en';
+  },
+};
+
+/* ===== platform-gamepush.js ===== */
+/* ============================================================
+ * SPACE DASH v2 — GamePushAdapter (verified against docs.gamepush.com)
+ * gp.gameStart / gp.gameplayStart / gp.gameplayStop / gp.on('pause'|'resume')
+ * gp.sounds.on('mute'|'unmute'|'mute:music'|'unmute:music')
+ * gp.ads.showRewardedVideo() + 'rewarded:reward'/'rewarded:close'
+ * gp.ads.showFullscreen() + 'fullscreen:close'
+ * gp.player.set('save', json) / get / sync / ready ; gp.language (ISO 639-1)
+ * Every call guarded: the game never crashes if the SDK shape changes.
+ * ============================================================ */
+'use strict';
+
+const GamePushAdapter = {
+  name: 'gamepush',
+  _cbs: {},
+  _gp: null,
+  _soundMuted: false,
+  _musicMuted: false,
+
+  _g() { return this._gp || window.gp || null; },
+  _safe(fn) { try { return fn(); } catch (e) { return undefined; } },
+
+  init() {
+    const gp = this._g();
+    if (!gp) return Promise.reject(new Error('no gp'));
+    this._gp = gp;
+    this._safe(() => gp.on('pause', () => this._emit('pause')));
+    this._safe(() => gp.on('resume', () => this._emit('resume')));
+    this._safe(() => {
+      if (gp.sounds && gp.sounds.on) {
+        gp.sounds.on('mute', () => { this._soundMuted = true; this._emit('mute'); });
+        gp.sounds.on('unmute', () => { this._soundMuted = false; this._emit('unmute'); });
+        gp.sounds.on('mute:music', () => { this._musicMuted = true; this._emit('mute:music'); });
+        gp.sounds.on('unmute:music', () => { this._musicMuted = false; this._emit('unmute:music'); });
+        this._soundMuted = !!gp.sounds.isMuted;
+        this._musicMuted = !!gp.sounds.isMusicMuted;
+      }
+    });
+    this._safe(() => {
+      if (gp.ads && gp.ads.on) {
+        gp.ads.on('start', () => this._emit('pause'));
+        gp.ads.on('close', () => this._emit('resume'));
+      }
+    });
+    return new Promise(resolve => {
+      let done = false;
+      const fin = () => { if (!done) { done = true; resolve(); } };
+      this._safe(() => { if (gp.player && gp.player.ready) Promise.resolve(gp.player.ready).then(fin, fin); });
+      setTimeout(fin, 4000);
+    });
+  },
+
+  ready() { this._safe(() => { const gp = this._g(); gp && gp.gameStart && gp.gameStart(); }); return Promise.resolve(); },
+  gameplayStart() { this._safe(() => { const gp = this._g(); gp && gp.gameplayStart && gp.gameplayStart(); }); },
+  gameplayStop() { this._safe(() => { const gp = this._g(); gp && gp.gameplayStop && gp.gameplayStop(); }); },
+
+  on(ev, cb) { (this._cbs[ev] = this._cbs[ev] || []).push(cb); },
+  off(ev, cb) {
+    const a = this._cbs[ev]; if (!a) return;
+    const i = a.indexOf(cb); if (i >= 0) a.splice(i, 1);
+  },
+  _emit(ev, arg) { (this._cbs[ev] || []).slice().forEach(cb => { try { cb(arg); } catch (e) {} }); },
+
+  interstitial(cbOk, cbErr) {
+    const gp = this._g();
+    let settled = false;
+    const ok = () => { if (!settled) { settled = true; cbOk && cbOk(); } };
+    const err = () => { if (!settled) { settled = true; if (cbErr) cbErr(); else cbOk && cbOk(); } };
+    if (!gp || !gp.ads || typeof gp.ads.showFullscreen !== 'function') return err();
+    this._safe(() => {
+      const p = gp.ads.showFullscreen();
+      if (p && p.then) p.then(ok, err); else setTimeout(ok, 500);
+    });
+    setTimeout(ok, 60000);
+  },
+
+  rewarded(cbReward, cbClose, cbErr) {
+    const gp = this._g();
+    let rewarded = false, settled = false;
+    const giveReward = () => { if (!rewarded) { rewarded = true; cbReward && cbReward(); } };
+    const close = (success) => {
+      if (settled) return; settled = true;
+      if (!rewarded && !success) { cbErr && cbErr(); }
+      cbClose && cbClose(!!success || rewarded);
+    };
+    if (!gp || !gp.ads || typeof gp.ads.showRewardedVideo !== 'function') {
+      cbErr && cbErr(); cbClose && cbClose(false); return;
+    }
+    this._safe(() => gp.ads.on('rewarded:reward', giveReward));
+    this._safe(() => gp.ads.on('rewarded:close', close));
+    this._safe(() => {
+      const p = gp.ads.showRewardedVideo();
+      if (p && p.then) p.then(s => { if (s) giveReward(); close(s !== false); }, () => close(false));
+    });
+    setTimeout(() => close(rewarded), 120000);
+  },
+
+  save(data) {
+    return new Promise(resolve => {
+      const gp = this._g();
+      try {
+        if (!gp || !gp.player || typeof gp.player.set !== 'function') return resolve(false);
+        gp.player.set('save', JSON.stringify(data));
+        if (typeof gp.player.sync === 'function') {
+          const p = gp.player.sync();
+          if (p && p.then) p.then(() => resolve(true), () => resolve(false));
+          else resolve(true);
+        } else resolve(true);
+      } catch (e) { resolve(false); }
+    });
+  },
+
+  load() {
+    const gp = this._g();
+    return new Promise(resolve => {
+      const raw = this._safe(() => gp && gp.player && gp.player.get ? gp.player.get('save') : null);
+      if (!raw) return resolve(null);
+      try { resolve(typeof raw === 'string' ? JSON.parse(raw) : raw); } catch (e) { resolve(null); }
+    });
+  },
+
+  getLang() {
+    const gp = this._g();
+    let l = this._safe(() => gp && gp.language);
+    if (typeof l !== 'string') l = '';
+    l = l.slice(0, 2).toLowerCase();
+    return (l === 'ru' || l === 'en') ? l : 'en';
+  },
+
+  isSoundMuted() { return this._soundMuted; },
+  isMusicMuted() { return this._musicMuted; },
+};
+
+/* Bootstrap: GamePush SDK if it arrives within 2 s, else LocalAdapter.
+   Force local with ?local=1 (autotests). */
+const Platform = {
+  adapter: LocalAdapter,
+  init() {
+    return new Promise(resolve => {
+      let done = false;
+      const finish = (a) => {
+        if (done) return; done = true;
+        this.adapter = a;
+        resolve(a);
+      };
+      let forceLocal = false;
+      try { forceLocal = new URLSearchParams(location.search).has('local'); } catch (e) {}
+      if (forceLocal) { LocalAdapter.init().then(() => finish(LocalAdapter)); return; }
+
+      const tryVK = () => {
+        if (done) return;
+        loadVkBridge(3000).then(b => {
+          if (done) return;
+          if (!b) { LocalAdapter.init().then(() => finish(LocalAdapter)); return; }
+          VKAdapter.init().then(() => finish(VKAdapter)).catch(() => { LocalAdapter.init().then(() => finish(LocalAdapter)); });
+        });
+      };
+      const tryGP = () => {
+        if (done) return;
+        if (window.gp) {
+          GamePushAdapter.init()
+            .then(() => finish(GamePushAdapter))
+            .catch(() => { LocalAdapter.init().then(() => finish(LocalAdapter)); });
+        }
+      };
+      window.addEventListener('gp-ready', tryGP);
+      tryGP();
+      setTimeout(() => { if (!done) tryVK(); }, 2000);
+    });
+  },
+};
+
+/* ===== platform-vk.js ===== */
+/* ============================================================
+ * SPACE DASH — VKAdapter (VK Bridge, verified against official
+ * vk-bridge types: packages/core/src/types/data.ts)
+ *   ads:      VKWebAppShowNativeAds {ad_format:'interstitial'|'reward'}
+ *   payments: VKWebAppShowOrderBox {type:'item', item} (votes, Direct Games)
+ *   storage:  VKWebAppStorageSet / VKWebAppStorageGet
+ *   pause:    events VKWebAppViewHide / VKWebAppViewRestore
+ *   lang:     VKWebAppGetUserInfo → language_code
+ * Every send is guarded: outside VK (GitHub Pages in a browser)
+ * the adapter fails fast and Platform falls back to LocalAdapter.
+ * ============================================================ */
+'use strict';
+
+const VK_BRIDGE_URL = 'https://unpkg.com/@vkontakte/vk-bridge@3/dist/browser.min.js';
+
+function loadVkBridge(timeoutMs) {
+  return new Promise(resolve => {
+    if (window.vkBridge) return resolve(window.vkBridge);
+    let done = false;
+    const fin = (b) => { if (!done) { done = true; resolve(b || null); } };
+    const sc = document.createElement('script');
+    sc.src = VK_BRIDGE_URL; sc.async = true;
+    sc.onload = () => fin(window.vkBridge || null);
+    sc.onerror = () => fin(null);
+    document.head.appendChild(sc);
+    setTimeout(() => fin(null), timeoutMs || 3000);
+  });
+}
+
+const VKAdapter = {
+  name: 'vk',
+  _cbs: {},
+  _b: null,
+  _lang: null,
+
+  _send(method, params) {
+    try {
+      const p = this._b.send(method, params);
+      return (p && p.then) ? p : Promise.resolve(p);
+    } catch (e) { return Promise.reject(e); }
+  },
+  init() {
+    this._b = window.vkBridge;
+    if (!this._b) return Promise.reject(new Error('no vkBridge'));
+    try {
+      this._b.subscribe((e) => {
+        if (!e || !e.type) return;
+        if (e.type === 'VKWebAppViewHide') this._emit('pause');
+        if (e.type === 'VKWebAppViewRestore') this._emit('resume');
+      });
+    } catch (e) {}
+    this._send('VKWebAppGetUserInfo').then(u => {
+      const l = String((u && (u.language_code || u.lang)) || '').slice(0, 2).toLowerCase();
+      this._lang = (l === 'ru' || l === 'en') ? l : null;
+    }).catch(() => {});
+    return this._send('VKWebAppInit').then(() => {}, () => {});
+  },
+  ready() { return Promise.resolve(); },
+  gameplayStart() {},
+  gameplayStop() {},
+  on(ev, cb) { (this._cbs[ev] = this._cbs[ev] || []).push(cb); },
+  off(ev, cb) { const a = this._cbs[ev]; if (!a) return; const i = a.indexOf(cb); if (i >= 0) a.splice(i, 1); },
+  _emit(ev, arg) { (this._cbs[ev] || []).slice().forEach(cb => { try { cb(arg); } catch (e) {} }); },
+
+  interstitial(cbOk, cbErr) {
+    let settled = false;
+    const ok = () => { if (!settled) { settled = true; cbOk && cbOk(); } };
+    const err = () => { if (!settled) { settled = true; cbErr ? cbErr() : ok(); } };
+    this._send('VKWebAppShowNativeAds', { ad_format: 'interstitial' }).then(ok, err);
+    setTimeout(ok, 60000);
+  },
+  rewarded(cbReward, cbClose, cbErr) {
+    let granted = false, settled = false;
+    const give = () => { if (!granted) { granted = true; cbReward && cbReward(); } };
+    const close = (s) => { if (!settled) { settled = true; cbClose && cbClose(s); } };
+    this._send('VKWebAppShowNativeAds', { ad_format: 'reward' })
+      .then(() => { give(); close(true); },
+            () => { cbErr && cbErr(); close(false); });
+    setTimeout(() => { if (!settled) { close(granted); } }, 120000);
+  },
+  save(data) {
+    return this._send('VKWebAppStorageSet', { key: 'sd_save_v1', value: JSON.stringify(data) })
+      .then(() => true, () => false);
+  },
+  load() {
+    return this._send('VKWebAppStorageGet', { keys: ['sd_save_v1'] }).then(r => {
+      const arr = (r && r.keys) || [];
+      for (const e of arr) if (e.key === 'sd_save_v1' && e.value) {
+        try { return JSON.parse(e.value); } catch (err) { return null; }
+      }
+      return null;
+    }, () => null);
+  },
+  getLang() {
+    if (this._lang) return this._lang;
+    const n = (navigator.language || 'en').slice(0, 2).toLowerCase();
+    return n === 'ru' ? 'ru' : 'en';
+  },
+  /* votes purchase (Direct Games order box) */
+  purchase(item) {
+    return this._send('VKWebAppShowOrderBox', { type: 'item', item }).then(r => {
+      if (!r) return false;
+      const st = r.status || (r.result && r.result.status) || r;
+      return st !== 'cancel' && st !== 'cancelled' && st !== false;
+    }, () => false);
+  },
+  isVK() { return !!this._b; },
+};
+
+/* ===== game-core.js ===== */
+/* ============================================================
+ * SPACE DASH v2 — game core (visual overhaul for moderation rework)
+ * Pure game logic + DOM UI + canvas renderer. Platform-agnostic.
+ * No console.* calls. No external assets: all art is pre-rendered
+ * to offscreen canvases at boot (metal-shaded ships, lit asteroids,
+ * nebulae, planets, glow sprites).
+ * ============================================================ */
+(function () {
+'use strict';
+
+/* ================= CONFIG ================= */
+const CFG = {
+  SAVE_KEY: 'sd_save_v1',
+  SCHEMA: 1,
+  SPEED_START: 5, SPEED_MAX: 15, SPEED_RAMP: 0.05,
+  M_PER_CELL: 2,
+  FUEL_MAX: 120, FUEL_DRAIN: 1, FUEL_CAN: 30,
+  LANE_MS: 0.15,
+  MAGNET_TIME: 10, MAGNET_R: 2.0,
+  DOUBLE_TIME: 15,
+  SHIP_Y: 2.4,
+  CONTINUE_COST: 500, BOOSTER_COST: 200, DAILY_REWARD: 30,
+  AD_COOLDOWN: 180000, AD_GRACE: 60000, AD_MENU_PLAYED: 120000,
+  HIT_MARGIN: 0.8,
+  PARTICLE_CAP: 340,
+  COMBO_WINDOW: 2.5, COMBO_STEP: 10, COMBO_BONUS: 15,
+  OD_TIME: 5, OD_HEAT: 5, OD_CD: 20, OD_SPEED: 1.5,
+  GHOST_CD: 20, GHOST_TIME: 1.5, REPAIR_T: 45, LUCKY_T: 20,
+  CHEST_DAYS: [3, 7, 14], CHEST_REWARD: { 3: 300, 7: 700, 14: 1500 },
+};
+
+/* ================= UTILS ================= */
+const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+function mc(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+function todayKey() { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+function yesterdayKey() { const d = new Date(Date.now() - 86400000); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+function dateSeed(key) { let h = 2166136261; for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+/* color helpers */
+function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function mix(c1, c2, t) { const a = hexRgb(c1), b = hexRgb(c2); return `rgb(${Math.round(lerp(a[0], b[0], t))},${Math.round(lerp(a[1], b[1], t))},${Math.round(lerp(a[2], b[2], t))})`; }
+function shade(c, t) { return t < 0 ? mix(c, '#000000', -t) : mix(c, '#ffffff', t); }
+function rgba(c, a) { const v = hexRgb(c); return `rgba(${v[0]},${v[1]},${v[2]},${a})`; }
+
+/* ================= MISSIONS (50) / ACHIEVEMENTS (25) ================= */
+const MDEFS = [
+  ['dist_run', 500, 100], ['coins_run', 30, 100], ['dodges_run', 20, 100],
+  ['dist_run', 1000, 150], ['coins_run', 60, 150], ['cans_run', 3, 150],
+  ['nodmg_run', 300, 200], ['powerups_run', 2, 150], ['dist_daily', 1000, 200, 'daily'],
+  ['shield_run', 1, 150],
+  ['dist_run', 2000, 200], ['coins_run', 100, 200], ['dodges_run', 50, 200],
+  ['m_missions', 5, 250], ['bh_run', 3, 250],
+  ['nodmg_run', 700, 300], ['dist_daily', 2000, 300, 'daily'], ['coins_total', 500, 250],
+  ['runs_total', 10, 250], ['powerups_run', 3, 250],
+  ['dist_run', 3500, 300], ['coins_run', 150, 300], ['dodges_run', 80, 300],
+  ['shield_run', 3, 300], ['m_missions', 15, 350],
+  ['nodmg_run', 1200, 400], ['dist_total', 20000, 350], ['coins_total', 2000, 350],
+  ['bh_run', 8, 350], ['streak', 3, 300],
+  ['dist_run', 5000, 400], ['coins_run', 200, 400], ['dodges_run', 120, 400],
+  ['cans_run', 5, 350], ['m_missions', 25, 450],
+  ['dist_daily', 3500, 400, 'daily'], ['coins_total', 5000, 450], ['dist_total', 50000, 450],
+  ['runs_total', 25, 400], ['perfect', 40, 500],
+  ['dist_run', 7500, 500], ['nodmg_run', 2000, 500], ['dodges_run', 200, 500],
+  ['m_missions', 35, 500], ['streak', 7, 500],
+  ['dist_run', 10000, 500], ['coins_run', 300, 500], ['runs_total', 50, 500],
+  ['m_missions', 49, 500], ['dist_total', 100000, 500],
+];
+const MISSIONS = MDEFS.map((m, i) => ({ id: i + 1, type: m[0], target: m[1], reward: m[2], modeReq: m[3] || null }));
+const ACHS = [
+  { id: 'a_d500',   reward: 100, chk: s => s.stats.best_distance >= 500 },
+  { id: 'a_d1000',  reward: 150, chk: s => s.stats.best_distance >= 1000 },
+  { id: 'a_d5000',  reward: 300, chk: s => s.stats.best_distance >= 5000 },
+  { id: 'a_d10000', reward: 500, chk: s => s.stats.best_distance >= 10000 },
+  { id: 'a_c100',   reward: 100, chk: s => s.stats.total_coins >= 100 },
+  { id: 'a_c500',   reward: 150, chk: s => s.stats.total_coins >= 500 },
+  { id: 'a_c1000',  reward: 250, chk: s => s.stats.total_coins >= 1000 },
+  { id: 'a_c5000',  reward: 500, chk: s => s.stats.total_coins >= 5000 },
+  { id: 'a_dg50',   reward: 100, chk: s => s.stats.total_dodges >= 50 },
+  { id: 'a_dg200',  reward: 150, chk: s => s.stats.total_dodges >= 200 },
+  { id: 'a_dg500',  reward: 250, chk: s => s.stats.total_dodges >= 500 },
+  { id: 'a_dg1000', reward: 500, chk: s => s.stats.total_dodges >= 1000 },
+  { id: 'a_m10',    reward: 150, chk: s => s.missions_completed.length >= 10 },
+  { id: 'a_m25',    reward: 300, chk: s => s.missions_completed.length >= 25 },
+  { id: 'a_m50',    reward: 500, chk: s => s.missions_completed.length >= 50 },
+  { id: 'a_s10',    reward: 150, chk: s => s.ships_unlocked.length >= 10 },
+  { id: 'a_s20',    reward: 300, chk: s => s.ships_unlocked.length >= 20 },
+  { id: 'a_s40',    reward: 500, chk: s => s.ships_unlocked.length >= 47 },
+  { id: 'a_st3',    reward: 100, chk: s => s.daily.best_streak >= 3 },
+  { id: 'a_st7',    reward: 200, chk: s => s.daily.best_streak >= 7 },
+  { id: 'a_st30',   reward: 500, chk: s => s.daily.best_streak >= 30 },
+  { id: 'a_nd1000', reward: 300, chk: s => s.stats.best_nodmg >= 1000 },
+  { id: 'a_perfect',reward: 300, chk: s => s.stats.best_perfect >= 50 },
+  { id: 'a_runs100',reward: 300, chk: s => s.stats.total_runs >= 100 },
+  { id: 'a_bh20',   reward: 250, chk: s => s.stats.bh_total >= 20 },
+];
+const DAILY_MODS = ['normal', 'storm', 'rain', 'clean', 'fast', 'marathon'];
+
+/* ================= SAVE ================= */
+function defaultSave() {
+  return {
+    schema_version: CFG.SCHEMA,
+    coins: 0,
+    best_distances: { endless: 0, mission: 0, daily: 0 },
+    ships_unlocked: [1, 2, 3, 4, 5],
+    ship_equipped: 1,
+    ship_rented: null,
+    missions_completed: [],
+    mission_best: {},
+    achievements: [],
+    daily: { streak: 0, best_streak: 0, last_date: '', rewarded_date: '', best: 0, best_date: '' },
+    stats: { total_distance: 0, total_coins: 0, total_dodges: 0, total_runs: 0, best_distance: 0,
+             best_nodmg: 0, best_perfect: 0, shield_blocks: 0, cans: 0, powerups: 0, bh_total: 0 },
+    settings: { sound: true, music: true, lang: null },
+    tutorial_done: false,
+    mastery: {},
+    quests: null,
+    questStreak: { days: 0, last: '', chests: [] },
+    lastSeen: '',
+    weekly: [],
+    ad_progress: {},
+  };
+}
+function sanitizeSave(o) {
+  const d = defaultSave();
+  if (!o || typeof o !== 'object') return d;
+  const s = Object.assign(d, o);
+  s.stats = Object.assign(d.stats, o.stats || {});
+  s.settings = Object.assign(d.settings, o.settings || {});
+  s.daily = Object.assign(d.daily, o.daily || {});
+  s.best_distances = Object.assign(d.best_distances, o.best_distances || {});
+  if (!Array.isArray(s.ships_unlocked) || !s.ships_unlocked.length) s.ships_unlocked = d.ships_unlocked;
+  if (!Array.isArray(s.missions_completed)) s.missions_completed = [];
+  if (!Array.isArray(s.achievements)) s.achievements = [];
+  if (!s.mission_best || typeof s.mission_best !== 'object') s.mission_best = {};
+  if (!s.mastery || typeof s.mastery !== 'object') s.mastery = {};
+  if (!Array.isArray(s.weekly)) s.weekly = [];
+  if (!s.ad_progress || typeof s.ad_progress !== 'object') s.ad_progress = {};
+  s.questStreak = Object.assign({ days: 0, last: '', chests: [] }, o.questStreak || {});
+  if (!Array.isArray(s.questStreak.chests)) s.questStreak.chests = [];
+  return s;
+}
+function loadLocal() {
+  try {
+    const raw = localStorage.getItem(CFG.SAVE_KEY);
+    if (!raw) return defaultSave();
+    const o = JSON.parse(raw);
+    if (!o || o.schema_version !== CFG.SCHEMA) {
+      const fresh = defaultSave();
+      fresh.coins += 1000;
+      fresh.settings.lang = o && o.settings ? o.settings.lang : null;
+      return fresh;
+    }
+    return sanitizeSave(o);
+  } catch (e) { return defaultSave(); }
+}
+function saveLocal() {
+  try { localStorage.setItem(CFG.SAVE_KEY, JSON.stringify(S.save)); } catch (e) {}
+}
+function mergeSave(cloud, local) {
+  if (!cloud) return local;
+  const c = sanitizeSave(cloud), s = local;
+  s.coins = Math.max(c.coins, s.coins);
+  for (const k in s.best_distances) s.best_distances[k] = Math.max(c.best_distances[k] || 0, s.best_distances[k]);
+  const uni = (a, b) => Array.from(new Set((a || []).concat(b || [])));
+  s.ships_unlocked = uni(c.ships_unlocked, s.ships_unlocked);
+  s.missions_completed = uni(c.missions_completed, s.missions_completed);
+  s.achievements = uni(c.achievements, s.achievements);
+  for (const k in c.mission_best) s.mission_best[k] = Math.max(c.mission_best[k] || 0, s.mission_best[k] || 0);
+  s.daily.streak = Math.max(c.daily.streak, s.daily.streak);
+  s.daily.best_streak = Math.max(c.daily.best_streak, s.daily.best_streak);
+  s.daily.best = Math.max(c.daily.best, s.daily.best);
+  if ((c.daily.last_date || '') > (s.daily.last_date || '')) { s.daily.last_date = c.daily.last_date; s.daily.rewarded_date = c.daily.rewarded_date; }
+  const st = s.stats, cs = c.stats;
+  for (const k of ['total_distance','total_coins','total_dodges','total_runs','best_distance','best_nodmg','best_perfect','shield_blocks','cans','powerups','bh_total'])
+    st[k] = Math.max(cs[k] || 0, st[k] || 0);
+  s.tutorial_done = s.tutorial_done || c.tutorial_done;
+  return s;
+}
+let saveTimer = 0;
+function saveGame(immediate) {
+  saveLocal();
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = 0; }
+  const push = () => { const a = Platform.adapter; if (a && a.save) a.save(S.save); SD.events.saves++; };
+  if (immediate) push(); else saveTimer = setTimeout(() => { saveTimer = 0; push(); }, 900);
+}
+
+/* ================= STATE ================= */
+const S = {
+  screen: 'loading', save: null, run: null, adapter: null,
+  pauseSource: null, sessionStart: Date.now(), lastInter: 0, playedMs: 0,
+  boost: { shield: false, magnet: false },
+  tut: { active: false, step: 0 },
+  bot: false, god: false,
+  shake: 0, shakeMag: 0, flash: 0, hitstop: 0, boomFx: null,
+  shootStar: null, shootAt: 4,
+};
+
+/* ================= AUDIO ================= */
+const Aud = {
+  ctx: null, master: null, sfxG: null, musG: null,
+  eng: null, musicTimer: 0, mStep: 0, mNext: 0,
+  gpMute: false, gpMusicMute: false,
+  ensure() {
+    if (this.ctx) return this.ctx;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try {
+      this.ctx = new AC();
+      this.master = this.ctx.createGain(); this.master.gain.value = 0.9; this.master.connect(this.ctx.destination);
+      this.sfxG = this.ctx.createGain(); this.sfxG.connect(this.master);
+      this.musG = this.ctx.createGain(); this.musG.gain.value = 0.30; this.musG.connect(this.master);
+    } catch (e) { this.ctx = null; }
+    return this.ctx;
+  },
+  resume() { if (this.ctx && this.ctx.state === 'suspended') { const p = this.ctx.resume(); if (p && p.catch) p.catch(() => {}); } },
+  suspend() { if (this.ctx && this.ctx.state === 'running') { const p = this.ctx.suspend(); if (p && p.catch) p.catch(() => {}); } },
+  sfxOk() { return !!this.ctx && this.ctx.state === 'running' && S.save && S.save.settings.sound && !this.gpMute; },
+  musOk() { return !!this.ctx && this.ctx.state === 'running' && S.save && S.save.settings.music && !this.gpMusicMute && !this.gpMute; },
+  tone(freq, dur, type, vol, slide) {
+    if (!this.sfxOk()) return;
+    const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    o.type = type || 'sine'; o.frequency.value = freq;
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, slide), c.currentTime + dur);
+    g.gain.setValueAtTime(vol || 0.2, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
+    o.connect(g); g.connect(this.sfxG); o.start(); o.stop(c.currentTime + dur + 0.02);
+  },
+  noise(dur, vol, freq, q) {
+    if (!this.sfxOk()) return;
+    const c = this.ctx, n = Math.floor(c.sampleRate * dur);
+    const buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    const src = c.createBufferSource(); src.buffer = buf;
+    const f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = freq || 900; f.Q.value = q || 0.8;
+    const g = c.createGain(); g.gain.value = vol || 0.3;
+    src.connect(f); f.connect(g); g.connect(this.sfxG); src.start();
+  },
+  coin(i) { const n = (i || 0) % 8; this.tone(784 * Math.pow(2, n / 12), 0.09, 'sine', 0.16, 1400); this.tone(1568 * Math.pow(2, n / 12), 0.05, 'triangle', 0.06); },
+  crash() { this.noise(0.5, 0.55, 500, 0.6); this.tone(150, 0.45, 'sawtooth', 0.28, 38); this.noise(0.2, 0.3, 2200, 1.4); },
+  power() { this.tone(523, 0.09, 'triangle', 0.2); setTimeout(() => this.tone(659, 0.09, 'triangle', 0.2), 80); setTimeout(() => this.tone(784, 0.14, 'triangle', 0.22), 160); },
+  fuel() { this.tone(392, 0.1, 'square', 0.12, 588); },
+  ui() { this.tone(620, 0.045, 'sine', 0.10); this.tone(930, 0.03, 'sine', 0.05); },
+  whoosh() { this.noise(0.14, 0.14, 1400, 1.8); },
+  siren() { this.tone(760, 0.22, 'square', 0.10, 500); setTimeout(() => this.tone(760, 0.22, 'square', 0.10, 500), 260); },
+  win() { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.tone(f, 0.16, 'triangle', 0.2), i * 110)); },
+  engineStart() {
+    if (!this.ensure() || this.eng) return;
+    const c = this.ctx;
+    const o1 = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter();
+    o1.type = 'sawtooth'; o1.frequency.value = 52; o2.type = 'sawtooth'; o2.frequency.value = 53.7;
+    f.type = 'lowpass'; f.frequency.value = 340; g.gain.value = 0;
+    o1.connect(f); o2.connect(f); f.connect(g); g.connect(this.master);
+    o1.start(); o2.start();
+    this.eng = { o1, o2, g, f };
+  },
+  engineSet(ratio, on) {
+    if (!this.eng) return;
+    const ok = on && S.save && S.save.settings.sound && !this.gpMute && this.ctx && this.ctx.state === 'running';
+    this.eng.g.gain.value = ok ? 0.05 + ratio * 0.05 : 0;
+    this.eng.f.frequency.value = 300 + ratio * 500;
+  },
+  engineStop() {
+    if (!this.eng) return;
+    try { this.eng.g.gain.value = 0; this.eng.o1.stop(); this.eng.o2.stop(); } catch (e) {}
+    this.eng = null;
+  },
+  musicStart() {
+    if (!this.ensure() || this.musicTimer) return;
+    this.mStep = 0; this.mNext = this.ctx.currentTime + 0.1;
+    const BASS = [110, 110, 130.8, 110, 87.3, 87.3, 98, 98];
+    const ARP = [440, 523.3, 659.3, 523.3, 392, 523.3, 659.3, 784];
+    const spb = 60 / 128 / 2;
+    const tick = () => {
+      if (!this.ctx) return;
+      while (this.mNext < this.ctx.currentTime + 0.35) {
+        if (this.musOk()) {
+          const st = this.mStep % 8, tt = this.mNext, c = this.ctx;
+          const o = c.createOscillator(), g = c.createGain();
+          o.type = 'triangle'; o.frequency.value = BASS[st];
+          g.gain.setValueAtTime(0.16, tt); g.gain.exponentialRampToValueAtTime(0.001, tt + spb * 0.9);
+          o.connect(g); g.connect(this.musG); o.start(tt); o.stop(tt + spb);
+          const o2 = c.createOscillator(), g2 = c.createGain();
+          o2.type = 'sine'; o2.frequency.value = ARP[st] * (this.mStep % 16 < 8 ? 1 : 1.19);
+          g2.gain.setValueAtTime(0.05, tt); g2.gain.exponentialRampToValueAtTime(0.001, tt + spb * 0.6);
+          o2.connect(g2); g2.connect(this.musG); o2.start(tt); o2.stop(tt + spb * 0.7);
+        }
+        this.mNext += spb; this.mStep++;
+      }
+    };
+    this.musicTimer = setInterval(tick, 110);
+    tick();
+  },
+  musicStop() { if (this.musicTimer) { clearInterval(this.musicTimer); this.musicTimer = 0; } },
+};
+
+/* ============================================================
+ * SPRITES v3 — pixel-art bank (pixels.js), baked at integer scale
+ * per layout for crisp 1:1 blits. No gradients, no glow-slop.
+ * ============================================================ */
+const SPR = {};
+let LOW = {};
+let BAKED = {};
+let PS = 4;
+function rockPal(i) {
+  const base = ['#8d6e63', '#7c8894', '#a1887f'][i % 3];
+  return { K: '#12172b', L: pShade(base, 0.4), C: base, D: pShade(base, -0.45) };
+}
+function buildSprites() {
+  buildPixelSprites(SPR);
+  LOW = { ships: [], ast: [], coin: [], flame: [], boom: [], hole: [] };
+  for (const ship of SHIPS) LOW.ships.push(pixCanvas(SPR.px_ship[ship.tpl % SPR.px_ship.length], shipPal(ship.color)));
+  for (let i = 0; i < SPR.px_ast.length; i++) LOW.ast.push(pixCanvas(SPR.px_ast[i], rockPal(i)));
+  LOW.debris = pixCanvas(SPR.px_debris, { K: '#12172b', L: '#9aa7bb', W: '#dfe8f5', C: '#5b6577', D: '#272e3f', E: '#39435a', e: '#ff8a50' });
+  for (const f of SPR.px_coin) LOW.coin.push(pixCanvas(f, { K: '#7a5200', L: '#fff3c4', Y: '#ffc53e', D: '#b57700' }));
+  LOW.fuel = pixCanvas(SPR.px_fuel, { K: '#3d0c0c', E: '#8e1c1c', L: '#ff8a76', C: '#e0503c', W: '#ffeb3b' });
+  LOW.shield = pixCanvas(SPR.px_shield, { K: '#0e3a5c', L: '#d9f6ff', G: '#49b7e8', W: '#ffffff' });
+  LOW.magnet = pixCanvas(SPR.px_magnet, { K: '#3d0c0c', R: '#e0503c', W: '#e8eef7' });
+  LOW.double = pixCanvas(SPR.px_double, { K: '#7a4a00', Y: '#ffc53e', W: '#fff6c9' });
+  for (const f of SPR.px_flame) LOW.flame.push(pixCanvas(f, { E: '#2b6bd8', e: '#bfe6ff' }));
+  for (const f of SPR.px_boom) LOW.boom.push(pixCanvas(f, { Y: '#ffd76a', W: '#fff3c4', R: '#e0503c', D: '#4a5578', K: '#12172b' }));
+  for (const f of SPR.px_hole) LOW.hole.push(pixCanvas(f, { P: '#a06bff', K: '#05060f' }));
+  LOW.pillar = pixCanvas(SPR.px_pillar, { K: '#12172b', L: '#8fa3d9', C: '#4a5578', D: '#232a38' });
+  LOW.boost = pixCanvas(SPR.px_boost, { K: '#12172b', W: '#ffffff', G: '#7edcff' });
+  LOW.portal = pixCanvas(SPR.px_portal, { K: '#12172b', P: '#a06bff', W: '#ffffff' });
+  LOW.trader = pixCanvas(SPR.px_trader, { K: '#12172b', C: '#4a5578', W: '#e8eef7', Y: '#ffd76a', E: '#232a38', e: '#8fd8ff' });
+  LOW.drone = pixCanvas(SPR.px_drone, { K: '#12172b', e: '#8fd8ff', C: '#4a5578' });
+}
+function bakeAll() {
+  BAKED = {};
+  PS = Math.max(2, Math.round(L.cell / 15));
+  if (!LOW.ships) return;
+  LOW.ships.forEach((low, i) => baked('ship' + (i + 1), low));
+  LOW.ast.forEach((low, i) => baked('ast' + i, low));
+  baked('deb', LOW.debris);
+  LOW.coin.forEach((low, i) => baked('coin' + i, low));
+  ['fuel', 'shield', 'magnet', 'double', 'boost', 'portal', 'trader'].forEach(k => baked('it' + k, LOW[k]));
+  LOW.flame.forEach((low, i) => baked('flame' + i, low));
+  LOW.boom.forEach((low, i) => baked('boom' + i, low, 2));
+  LOW.hole.forEach((low, i) => baked('hole' + i, low, 2));
+  baked('pillar', LOW.pillar);
+  baked('drone', LOW.drone);
+}
+function baked(key, low, mul) {
+  const k = key + (mul || 1);
+  if (BAKED[k]) return BAKED[k];
+  const m = PS * (mul || 1);
+  const c = mc(low.width * m, low.height * m);
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  g.drawImage(low, 0, 0, low.width * m, low.height * m);
+  BAKED[k] = c;
+  return c;
+}
+
+/* ================= DOM ================= */
+const D = {};
+function cacheDom() {
+  const ids = ['cv', 'scr-menu', 'scr-missions', 'scr-daily', 'scr-ships', 'scr-ach', 'scr-set',
+    'hud', 'scr-pause', 'scr-over', 'tut', 'toast-box', 'loading',
+    'menu-coins', 'menu-best', 'btn-play', 'btn-missions', 'btn-daily', 'btn-ships', 'btn-ach', 'btn-set',
+    'bst-shield', 'bst-magnet', 'bst-shield-buy', 'bst-shield-ad', 'bst-magnet-buy', 'bst-magnet-ad',
+    'missions-list', 'ships-grid', 'ships-count', 'ach-list', 'ach-count',
+    'daily-mod', 'daily-best', 'daily-streak', 'daily-rewarded', 'btn-daily-play',
+    'set-sound', 'set-music', 'lang-ru', 'lang-en', 'set-ver',
+    'hud-dist', 'hud-coins', 'hud-mode', 'hud-fuel', 'hud-speed', 'pu-chips', 'btn-pause',
+    'skill-bar', 'quests-box', 'weekly-box',
+    'scr-ship', 'sd-sprite', 'sd-name', 'sd-stars', 'sd-trait', 'sd-desc', 'sd-stats', 'sd-mast',
+    'sd-equip', 'sd-buy', 'sd-ad', 'sd-back',
+    'btn-resume', 'btn-restart', 'btn-pmenu',
+    'over-title', 'over-record', 'over-dist', 'over-coins', 'over-dodges', 'over-mission', 'over-ach',
+    'btn-cont-ad', 'btn-cont-coins', 'btn-double', 'btn-retry', 'btn-over-menu',
+    'tut-text', 'btn-tut-skip', 'tut-hand'];
+  for (const id of ids) D[id.replace(/-/g, '_')] = document.getElementById(id);
+  D.cv_ctx = D.cv.getContext('2d');
+}
+
+/* ================= LAYOUT / BACKGROUND ================= */
+const L = { cw: 0, ch: 0, cell: 48, fieldX: 0, fieldW: 0, fieldH: 0, fieldHcells: 8, dpr: 1,
+  bg: null, deep: null, rail: null, pulse: null };
+let deepOff = 0;
+let dust = [];
+function layout() {
+  const cw = window.innerWidth, ch = window.innerHeight;
+  L.cw = cw; L.ch = ch;
+  L.dpr = Math.min(2, window.devicePixelRatio || 1);
+  D.cv.width = Math.round(cw * L.dpr); D.cv.height = Math.round(ch * L.dpr);
+  D.cv_ctx.setTransform(L.dpr, 0, 0, L.dpr, 0, 0);
+  const cell = clamp(Math.min(cw * 0.92 / 3, ch / 8), 34, 128);
+  L.cell = cell; L.fieldW = cell * 3; L.fieldH = ch; L.fieldX = Math.floor((cw - L.fieldW) / 2);
+  L.fieldHcells = ch / cell;
+  bakeAll();
+  buildBackground();
+  makeDust();
+}
+function buildBackground() {
+  const cw = Math.max(2, Math.round(L.cw)), ch = Math.max(2, Math.round(L.ch));
+  const bg = mc(cw, ch), g = bg.getContext('2d');
+  const bands = ['#0b0f22', '#0d1226', '#10152b', '#131831', '#161b37'];
+  const bh = ch / bands.length;
+  for (let i = 0; i < bands.length; i++) {
+    g.fillStyle = bands[i];
+    g.fillRect(0, Math.floor(i * bh), cw, Math.ceil(bh) + 3);
+    if (i) {
+      g.fillStyle = bands[i - 1];
+      for (let x = 0; x < cw; x += 2) g.fillRect(x, Math.floor(i * bh) - 2 + (x % 4 === 0 ? 1 : 0), 1, 2);
+    }
+  }
+  L.bg = bg;
+  const deep = mc(cw, ch), n = deep.getContext('2d');
+  const rnd = mulberry32(9042);
+  for (let i = 0; i < 110; i++) {
+    n.fillStyle = i % 3 ? '#8fa3d9' : '#e8f2ff';
+    const sz = i % 11 === 0 ? 2 : 1;
+    n.fillRect(Math.floor(rnd() * cw), Math.floor(rnd() * ch), sz, sz);
+  }
+  const px = Math.floor(cw * 0.2), py = Math.floor(ch * 0.28), pr = Math.max(18, Math.floor(Math.min(cw, ch) * 0.16));
+  n.fillStyle = '#2c2450';
+  n.beginPath(); n.arc(px, py, pr, 0, 7); n.fill();
+  n.save(); n.beginPath(); n.arc(px, py, pr, 0, 7); n.clip();
+  n.fillStyle = '#241d40';
+  for (let y = -pr; y < pr; y += 2) for (let x = 0; x < pr; x += 2) n.fillRect(px + x + (y % 4 === 0 ? 1 : 0), py + y, 1, 1);
+  n.fillStyle = '#3a2f66';
+  n.fillRect(px - pr, py - Math.floor(pr * 0.35), pr * 2, 3);
+  n.fillRect(px - pr, py + Math.floor(pr * 0.25), pr * 2, 2);
+  n.restore();
+  n.fillStyle = '#5b4a86';
+  for (let a = 0; a < 6.28; a += 0.02) {
+    const rx = Math.cos(a) * pr * 1.5, ry = Math.sin(a) * pr * 0.38;
+    const xx = px + rx * Math.cos(-0.18) - ry * Math.sin(-0.18);
+    const yy = py + rx * Math.sin(-0.18) + ry * Math.cos(-0.18);
+    n.fillRect(Math.floor(xx), Math.floor(yy), 2, 2);
+  }
+  L.deep = deep;
+  const rail = mc(Math.round(L.fieldW) + 16, ch), rg = rail.getContext('2d');
+  rg.fillStyle = 'rgba(18,24,52,.55)'; rg.fillRect(8, 0, Math.round(L.fieldW), ch);
+  for (const ex of [8, 8 + Math.round(L.fieldW) - 3]) {
+    rg.fillStyle = '#26305e'; rg.fillRect(ex, 0, 3, ch);
+    rg.fillStyle = '#3a4a86'; rg.fillRect(ex + 1, 0, 1, ch);
+  }
+  L.rail = rail;
+  const pu = mc(2, 10), pg = pu.getContext('2d');
+  pg.fillStyle = '#7fb4ff'; pg.fillRect(0, 0, 2, 10);
+  pg.fillStyle = '#cfe3ff'; pg.fillRect(0, 3, 2, 4);
+  L.pulse = pu;
+}
+function makeDust() {
+  dust = [];
+  for (let i = 0; i < 26; i++) dust.push({ x: Math.floor(Math.random() * L.cw), y: Math.random() * L.ch, a: i % 2 });
+}
+
+/* ================= RUN ================= */
+function shipById(id) { return SHIPS.find(s => s.id === id) || SHIPS[0]; }
+function isShipAvailable(id) {
+  if (S.save.ships_unlocked.indexOf(id) !== -1) return true;
+  const r = S.save.ship_rented;
+  return !!(r && r.id === id && r.date === todayKey());
+}
+function masteryStars(id) {
+  const m = (S.save.mastery || {})[id];
+  if (!m) return 0;
+  let st = 0;
+  if (m.d >= 500) st = 1;
+  if (st && m.c >= 150) st = 2;
+  if (st === 2 && m.s >= 2) st = 3;
+  return st;
+}
+function traitPow(r) { return 1 + 0.15 * (r.stars || 0); }
+function equippedShip() {
+  const eq = S.save.ship_equipped;
+  if (isShipAvailable(eq)) return shipById(eq);
+  return shipById(S.save.ships_unlocked[0] || 1);
+}
+function newRun(mode, opts) {
+  opts = opts || {};
+  const ship = equippedShip();
+  const seed = mode === 'daily' ? dateSeed(todayKey()) : ((Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0);
+  const mod = mode === 'daily' ? DAILY_MODS[dateSeed(todayKey()) % DAILY_MODS.length] : (opts.mod || 'normal');
+  const stars = masteryStars(ship.id);
+  const trait = ship.trait || 'stock';
+  const run = {
+    mode, mod, missionId: opts.missionId || null, ship, trait, stars,
+    bombs: trait === 'bomber' ? 3 + (stars >= 3 ? 1 : 0) : 0,
+    ghostCd: CFG.GHOST_CD, phaseT: 0, repairT: CFG.REPAIR_T, luckyT: CFG.LUCKY_T,
+    chronoUsed: false, slowT: 0,
+    od: { t: 0, heat: 0, cd: 0 }, boostT: 0, bonusT: 0,
+    droneSide: 1, droneT: 5, storms: 0, near: 0,
+    genDensity: trait === 'smuggler' ? 1.15 : 1,
+    t: 0, travelled: 0, dist_m: 0, speed: CFG.SPEED_START,
+    lane: 1, shipX: 1, laneFrom: 1, laneT: 1,
+    fuelCap: CFG.FUEL_MAX + ship.stats.fuel, fuel: CFG.FUEL_MAX + ship.stats.fuel,
+    coins: 0, coinMissed: 0, dodges: 0, shieldBlocks: 0, cansCollected: 0,
+    powerupsCollected: 0, bhEscaped: 0, hitsTaken: 0, nodmgStart: 0,
+    shield: !!opts.shield, magnetT: opts.magnet ? CFG.MAGNET_TIME * ship.stats.mag : 0, doubleT: 0, invulnT: 0,
+    entities: [], gen: new Generator({ seed, mod }),
+    continueUsed: false, doubled: false, over: false, reason: '',
+    combo: 0, comboT: 0, coinSeq: 0,
+    trail: [], fuelDrain: 1,
+    storm: 0, stormPhase: -1, nextStormAt: 40,
+  };
+  if (trait === 'veteran') run.fuel = run.fuelCap = Math.round(run.fuelCap * 0.5);
+  if (trait === 'magnetolog') run.passiveMag = 1.2 * (1 + 0.15 * stars);
+  if (trait === 'void') run.passiveMag = 2.0 * (1 + 0.1 * stars);
+  if (trait === 'emperor') { run.shield = true; run.magnetT = Math.max(run.magnetT, CFG.MAGNET_TIME * ship.stats.mag); }
+  return run;
+}
+function startRun(mode, opts) {
+  opts = opts || {};
+  Aud.ensure(); Aud.resume();
+  S.run = newRun(mode, opts);
+  S.screen = 'playing';
+  S.pauseSource = null; S.hitstop = 0;
+  if (S.boost.shield && !S.run.shield) S.run.shield = true;
+  if (S.boost.magnet && !S.run.magnetT) S.run.magnetT = CFG.MAGNET_TIME * S.run.ship.stats.mag;
+  S.boost.shield = false; S.boost.magnet = false; renderBoosters();
+  if (!S.save.tutorial_done && !opts.skipTut) { S.tut.active = true; S.tut.step = 1; showTutorial(); }
+  else { S.tut.active = false; D.tut.classList.remove('active'); }
+  showScreen('hud');
+  Aud.engineStart(); Aud.musicStart();
+  try { Platform.adapter.gameplayStart(); } catch (e) {}
+  SD.events.runs++;
+}
+function endRun(reason) {
+  const r = S.run;
+  if (!r || r.over) return;
+  r.over = true; r.reason = reason;
+  S.screen = 'gameover';
+  try { Platform.adapter.gameplayStop(); } catch (e) {}
+  Aud.engineStop();
+  if (reason === 'crash') {
+    Aud.crash(); boom(r); S.shake = 0.55; S.shakeMag = 16; S.hitstop = 0.09; S.flash = 0.18;
+    S.boomFx = { x: L.fieldX + (r.shipX + 0.5) * L.cell, y: (L.fieldHcells - CFG.SHIP_Y) * L.cell, t: 0 };
+  } else Aud.tone(220, 0.5, 'sawtooth', 0.2, 60);
+
+  const st = S.save.stats;
+  const dist = Math.floor(r.dist_m);
+  let isRecord = false, missionMsg = '', dailyMsg = '';
+  {
+  st.total_distance += dist; st.total_coins += r.coins; st.total_dodges += r.dodges; st.total_runs++;
+  st.shield_blocks += r.shieldBlocks; st.cans += r.cansCollected; st.powerups += r.powerupsCollected; st.bh_total += r.bhEscaped;
+  const nodmg = r.hitsTaken === 0 ? dist : Math.floor(dist - r.nodmgStart);
+  st.best_nodmg = Math.max(st.best_nodmg, nodmg);
+  if (r.coinMissed === 0 && r.coins >= 50) st.best_perfect = Math.max(st.best_perfect, r.coins);
+  const recKey = r.mode;
+  isRecord = dist > (S.save.best_distances[recKey] || 0) && dist > 0;
+  S.save.best_distances[recKey] = Math.max(S.save.best_distances[recKey] || 0, dist);
+  st.best_distance = Math.max(st.best_distance, dist);
+
+  if (r.mode === 'daily') {
+    const tk = todayKey();
+    if (S.save.daily.best_date !== tk) { S.save.daily.best = dist; S.save.daily.best_date = tk; }
+    else if (dist > S.save.daily.best) S.save.daily.best = dist;
+    if (S.save.daily.rewarded_date !== tk) {
+      S.save.daily.rewarded_date = tk;
+      S.save.coins += CFG.DAILY_REWARD;
+      S.save.daily.streak = (S.save.daily.last_date === yesterdayKey()) ? S.save.daily.streak + 1 : 1;
+      S.save.daily.last_date = tk;
+      S.save.daily.best_streak = Math.max(S.save.daily.best_streak, S.save.daily.streak);
+      dailyMsg = t('daily_reward', { n: CFG.DAILY_REWARD }) + ' · ' + t('streak_now', { n: S.save.daily.streak });
+    }
+  }
+
+  if (r.mode === 'mission' && r.missionId) {
+    const m = MISSIONS.find(x => x.id === r.missionId);
+    if (m) {
+      const prog = missionProgress(m, r);
+      S.save.mission_best[m.id] = Math.max(S.save.mission_best[m.id] || 0, prog);
+      if (prog >= m.target && S.save.missions_completed.indexOf(m.id) === -1) {
+        S.save.missions_completed.push(m.id);
+        const rw = Math.floor(m.reward * (r.trait === 'veteran' ? 1.25 : 1));
+        S.save.coins += rw;
+        missionMsg = t('mission_done', { n: rw });
+        Aud.win();
+      } else if (prog >= m.target) missionMsg = t('mission_completed');
+      else missionMsg = t('mission_fail') + ' (' + Math.floor(prog) + '/' + m.target + ')';
+    }
+  }
+
+  // mastery
+  const mid = r.ship.id;
+  const m = S.save.mastery[mid] || (S.save.mastery[mid] = { d: 0, c: 0, s: 0 });
+  const starsBefore = masteryStars(mid);
+  m.d = Math.max(m.d || 0, dist);
+  m.c = Math.max(m.c || 0, r.coins);
+  m.s = Math.max(m.s || 0, r.storms || 0);
+  const starsAfter = masteryStars(mid);
+  if (starsAfter > starsBefore) {
+    const rw = [100, 200, 300][starsAfter - 1];
+    S.save.coins += rw;
+    toast(t('mastery_label') + ' ★' + starsAfter + ' ' + t(shipById(mid).nameKey) + ' +' + rw, 'star');
+    Aud.win();
+  }
+  // daily quests
+  ensureQuests();
+  updateQuests(r);
+  // weekly top
+  S.save.weekly = (S.save.weekly || []).filter(w => Date.now() - w.ts < 7 * 86400000);
+  S.save.weekly.push({ d: dist, c: r.coins, ts: Date.now(), s: mid });
+  S.save.weekly.sort((a, b) => b.d - a.d);
+  S.save.weekly = S.save.weekly.slice(0, 5);
+  try {
+    const gp = window.gp;
+    if (gp && gp.leaderboard && typeof gp.leaderboard.set === 'function') gp.leaderboard.set('week', dist);
+  } catch (e) {}
+  }
+  const newAch = checkAchievements();
+  saveGame(true);
+
+  D.over_title.textContent = reason === 'fuel' ? t('gameover_fuel') : t('gameover_crash');
+  D.over_record.style.display = isRecord ? 'block' : 'none';
+  D.over_dist.textContent = t('distance_m', { n: dist });
+  D.over_coins.textContent = r.coins;
+  D.over_dodges.textContent = r.dodges;
+  D.over_mission.style.display = missionMsg ? 'block' : 'none';
+  D.over_mission.textContent = missionMsg;
+  const achMsg = newAch.map(a => t('ach_done', { name: t(a.id), n: a.reward })).join('\n');
+  D.over_ach.style.display = achMsg ? 'block' : 'none';
+  D.over_ach.textContent = achMsg;
+  if (dailyMsg) toast(dailyMsg);
+
+  const canCont = reason === 'crash' && !r.continueUsed;
+  D.btn_cont_ad.style.display = canCont ? 'block' : 'none';
+  D.btn_cont_ad.textContent = t('continue_ad');
+  D.btn_cont_coins.style.display = (canCont && S.save.coins >= CFG.CONTINUE_COST) ? 'block' : 'none';
+  D.btn_cont_coins.textContent = t('continue_coins', { n: CFG.CONTINUE_COST });
+  D.btn_double.style.display = (r.coins > 0 && !r.doubled) ? 'block' : 'none';
+  D.btn_double.textContent = t('double_ad') + ' (+' + r.coins + ')';
+  showScreen('over');
+  syncCoinsUI();
+}
+function continueRun() {
+  const r = S.run;
+  if (!r || r.continueUsed) return;
+  r.continueUsed = true;
+  const shipYc = L.fieldHcells - CFG.SHIP_Y;
+  r.entities = r.entities.filter(e => e.kind !== 'obs' || (r.travelled - e.dist) < -3 || (r.travelled - e.dist) > shipYc + 1);
+  r.shield = true; r.invulnT = 2; r.fuel = Math.max(r.fuel, 40);
+  r.over = false; r.reason = ''; r.combo = 0;
+  S.screen = 'playing';
+  showScreen('hud');
+  Aud.engineStart();
+  try { Platform.adapter.gameplayStart(); } catch (e) {}
+}
+function boom(r) {
+  const px = L.fieldX + (r.shipX + 0.5) * L.cell, py = (L.fieldHcells - CFG.SHIP_Y) * L.cell;
+  particles(px, py, 46, ['#ff8a50', '#ffd76a', '#ff5a4e', '#ffffff', '#5a9eff'], 8, 1.2);
+}
+function missionProgress(m, r) {
+  const st = S.save.stats;
+  switch (m.type) {
+    case 'dist_run': return r ? r.dist_m : 0;
+    case 'coins_run': return r ? r.coins : 0;
+    case 'dodges_run': return r ? r.dodges : 0;
+    case 'nodmg_run': return r ? (r.hitsTaken === 0 ? r.dist_m : r.dist_m - r.nodmgStart) : 0;
+    case 'cans_run': return r ? r.cansCollected : 0;
+    case 'powerups_run': return r ? r.powerupsCollected : 0;
+    case 'shield_run': return r ? r.shieldBlocks : 0;
+    case 'bh_run': return r ? r.bhEscaped : 0;
+    case 'dist_daily': return (r && r.mode === 'daily') ? r.dist_m : (S.save.mission_best[m.id] || 0);
+    case 'perfect': return (r && r.coinMissed === 0 && r.coins >= m.target) ? r.coins : 0;
+    case 'coins_total': return st.total_coins;
+    case 'dist_total': return st.total_distance;
+    case 'runs_total': return st.total_runs;
+    case 'm_missions': return S.save.missions_completed.length;
+    case 'streak': return S.save.daily.best_streak;
+  }
+  return 0;
+}
+const QUEST_DEFS = {
+  q_dist:   { key: 'm_dist_run',   vals: [800, 1200, 2000],  rw: [80, 110, 150], get: r => r.dist_m },
+  q_coins:  { key: 'm_coins_run',  vals: [100, 150, 250],    rw: [90, 120, 160], get: r => r.coins },
+  q_dodges: { key: 'm_dodges_run', vals: [30, 50, 80],       rw: [80, 110, 140], get: r => r.dodges },
+  q_storm:  { key: 'q_storm',      vals: [1, 2],             rw: [120, 180],     get: r => r.storms },
+  q_near:   { key: 'q_near',       vals: [5, 10],            rw: [100, 140],     get: r => r.near || 0 },
+  q_power:  { key: 'm_powerups_run', vals: [2, 3],           rw: [90, 130],      get: r => r.powerupsCollected },
+};
+function ensureQuests() {
+  const tk = todayKey();
+  if (S.save.quests && S.save.quests.date === tk) return;
+  const seed = dateSeed(tk + 'q');
+  const rnd = mulberry32(seed);
+  const types = Object.keys(QUEST_DEFS);
+  const picked = [];
+  while (picked.length < 3) {
+    const ty = types[Math.floor(rnd() * types.length)];
+    if (picked.indexOf(ty) === -1) picked.push(ty);
+  }
+  S.save.quests = {
+    date: tk,
+    list: picked.map((ty, i) => {
+      const d = QUEST_DEFS[ty];
+      const ti = Math.floor(rnd() * d.vals.length);
+      return { type: ty, target: d.vals[ti], reward: d.rw[ti], prog: 0, claimed: false };
+    }),
+  };
+  saveGame(false);
+}
+function updateQuests(r) {
+  if (!S.save.quests || S.save.quests.date !== todayKey()) return;
+  for (const q of S.save.quests.list) {
+    const d = QUEST_DEFS[q.type];
+    if (d) q.prog = Math.max(q.prog || 0, Math.floor(d.get(r)));
+  }
+}
+function questStreakBump() {
+  const qs = S.save.questStreak;
+  const tk = todayKey();
+  if (qs.last === tk) return;
+  qs.days = (qs.last === yesterdayKey()) ? qs.days + 1 : 1;
+  qs.last = tk;
+}
+function chestNext() {
+  const qs = S.save.questStreak;
+  for (const d of CFG.CHEST_DAYS) if (qs.days >= d && qs.chests.indexOf(d) === -1) return d;
+  return 0;
+}
+function checkAchievements() {
+  const out = [];
+  for (const a of ACHS) {
+    if (S.save.achievements.indexOf(a.id) !== -1) continue;
+    let ok = false;
+    try { ok = a.chk(S.save); } catch (e) { ok = false; }
+    if (ok) { S.save.achievements.push(a.id); S.save.coins += a.reward; out.push(a); }
+  }
+  return out;
+}
+
+/* ================= ENTITIES / UPDATE ================= */
+function spawnFromRow(row) {
+  const r = S.run;
+  for (const o of row.obstacles) {
+    r.entities.push({ kind: 'obs', type: o.type, x: o.lane, lane: o.lane, dist: row.dist, drift: o.drift || 0,
+      age: 0, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 1.4, astI: Math.floor(Math.random() * 3), passed: false, hitDone: false, ph: Math.random() * 6.28 });
+  }
+  for (const it of row.items) {
+    r.entities.push({ kind: it.type === 'coin' ? 'coin' : 'item', type: it.type, x: it.lane, lane: it.lane, dist: it.d, taken: false, ph: Math.random() * 6.28 });
+  }
+}
+function overdrive() {
+  const r = S.run;
+  if (!r || r.over || S.screen !== 'playing') return;
+  if (r.od.t > 0 || r.od.heat > 0 || r.od.cd > 0) return;
+  r.od.t = r.trait === 'forsa' ? 8 : CFG.OD_TIME;
+  Aud.power();
+  toast(t('od_active'), 'od');
+}
+function bomberShot() {
+  const r = S.run;
+  if (!r || r.over || S.screen !== 'playing' || r.trait !== 'bomber' || r.bombs <= 0) return;
+  const shipY = L.fieldHcells - CFG.SHIP_Y;
+  let best = -1, bestD = 99;
+  for (let i = 0; i < r.entities.length; i++) {
+    const e = r.entities[i];
+    if (e.kind !== 'obs' || e.hitDone) continue;
+    const y = r.travelled - e.dist;
+    const d = shipY - y;
+    if (d > 0.8 && d < 7 && Math.abs(e.x - r.shipX) < 0.5 && d < bestD) { bestD = d; best = i; }
+  }
+  if (best < 0) return;
+  const e = r.entities[best];
+  particles(L.fieldX + (e.x + 0.5) * L.cell, (r.travelled - e.dist) * L.cell, 20, ['#ffd76a', '#ff8a50', '#ffffff'], 5, 0.6);
+  Aud.crash();
+  r.entities.splice(best, 1);
+  r.bombs--;
+  S.shake = Math.max(S.shake, 0.18); S.shakeMag = 8;
+}
+function chronoUse() {
+  const r = S.run;
+  if (!r || r.over || S.screen !== 'playing' || r.trait !== 'chrono' || r.chronoUsed) return;
+  r.chronoUsed = true;
+  r.slowT = 5 + (r.stars >= 2 ? 1 : 0);
+  Aud.power();
+  toast(t('skill_chrono'), 'clock');
+}
+function updateRun(dt) {
+  const r = S.run;
+  r.t += dt;
+  let odMul = 1;
+  if (r.od.t > 0) { r.od.t -= dt; odMul = CFG.OD_SPEED; if (r.od.t <= 0) { r.od.heat = (r.trait === 'forsa' || r.trait === 'reaper') ? 0 : CFG.OD_HEAT; } }
+  else if (r.od.heat > 0) { r.od.heat -= dt; odMul = 0.8; if (r.od.heat <= 0) r.od.cd = r.trait === 'reaper' ? 6 : CFG.OD_CD; }
+  else if (r.od.cd > 0) r.od.cd -= dt;
+  if (r.slowT > 0) r.slowT -= dt;
+  const dtw = dt * (r.slowT > 0 ? 0.5 : 1);
+  if (r.boostT > 0) r.boostT -= dt;
+  const baseSpeed = Math.min(CFG.SPEED_MAX, CFG.SPEED_START + CFG.SPEED_RAMP * r.t);
+  r.speed = Math.min(20, baseSpeed * r.ship.stats.spd * odMul) + (r.boostT > 0 ? 2 : 0);
+  if (r.mod === 'fast' && r.t < 60) r.speed = Math.min(20, (CFG.SPEED_START + 2 + CFG.SPEED_RAMP * r.t) * r.ship.stats.spd * odMul);
+  const dcells = r.speed * dtw;
+  r.travelled += dcells;
+  r.dist_m += dcells * CFG.M_PER_CELL;
+
+  r.fuel -= CFG.FUEL_DRAIN * (r.fuelDrain || 1) * dtw;
+  if (r.fuel <= 0) { r.fuel = 0; endRun('fuel'); return; }
+
+  if (r.laneT < 1) {
+    r.laneT = Math.min(1, r.laneT + dt / CFG.LANE_MS);
+    r.shipX = lerp(r.laneFrom, r.lane, easeOut(r.laneT));
+    if (r.laneT >= 1) r.shipX = r.lane;
+  }
+  r.shipX = clamp(r.shipX, -0.15, 2.15);
+
+  if (r.magnetT > 0) r.magnetT -= dt;
+  if (r.doubleT > 0) r.doubleT -= dt;
+  if (r.invulnT > 0) r.invulnT -= dt;
+  if (r.comboT > 0) { r.comboT -= dt; if (r.comboT <= 0) r.combo = 0; }
+  if (r.trait === 'ghost' || r.trait === 'void') {
+    if (r.phaseT > 0) r.phaseT -= dt;
+    else { r.ghostCd -= dt; if (r.ghostCd <= 0) { r.phaseT = (r.trait === 'void' ? 2 : CFG.GHOST_TIME) * traitPow(r); r.ghostCd = r.trait === 'void' ? 10 : CFG.GHOST_CD; toast(t('tr_' + r.trait), 'ghost'); } }
+  }
+  if (r.trait === 'repair' && !r.shield) { r.repairT -= dt; if (r.repairT <= 0) { r.shield = true; r.repairT = CFG.REPAIR_T / traitPow(r); toast(t('tr_repair'), 'shield'); } }
+  if (r.trait === 'lucky') {
+    r.luckyT -= dt;
+    if (r.luckyT <= 0) {
+      r.luckyT = CFG.LUCKY_T / traitPow(r);
+      const k = ['shield', 'magnet', 'double', 'fuel'][Math.floor(Math.random() * 4)];
+      if (k === 'shield') r.shield = true;
+      if (k === 'magnet') r.magnetT = CFG.MAGNET_TIME;
+      if (k === 'double') r.doubleT = CFG.DOUBLE_TIME;
+      if (k === 'fuel') r.fuel = Math.min(r.fuelCap, r.fuel + 20);
+      toast(t('tr_lucky') + ': ' + t(k === 'fuel' ? 'pu_fuel' : 'pu_' + k), 'star');
+      Aud.power();
+    }
+  }
+  if (r.trait === 'escort') { r.droneT -= dt; if (r.droneT <= 0) { r.droneT = 5; r.droneSide = -r.droneSide; } }
+  if (r.bonusT > 0) r.bonusT -= dt;
+
+  // trail ribbon
+  r.trail.push({ x: r.shipX, y: L.fieldHcells - CFG.SHIP_Y });
+  if (r.trail.length > 16) r.trail.shift();
+  for (const tp of r.trail) tp.y += dcells;
+
+  if (r.t >= r.nextStormAt) {
+    const ph = r.t - r.nextStormAt;
+    if (ph < 3) {
+      r.storm = 0;
+      if (r.stormPhase !== 0) { r.stormPhase = 0; toast(t('storm_warn', { n: 3 }), 'flame'); Aud.siren(); }
+    } else if (ph < 11) {
+      r.storm = 1;
+      if (r.stormPhase !== 1) { r.stormPhase = 1; r.storms++; toast(t('storm_now'), 'flame'); Aud.siren(); }
+    } else { r.storm = 0; r.stormPhase = -1; r.nextStormAt = r.t + 45; }
+  }
+  const g0 = performance.now();
+  const rows = r.bonusT > 0 ? [] : r.gen.update(r.travelled, r.t, r.speed, L.fieldHcells + 8, r.storm === 1, r.genDensity);
+  const gms = performance.now() - g0;
+  if (gms > SD.perf.genMaxMs) SD.perf.genMaxMs = gms;
+  for (const row of rows) spawnFromRow(row);
+
+  const shipY = L.fieldHcells - CFG.SHIP_Y;
+  const magOn = r.magnetT > 0 || r.passiveMag > 0;
+
+  for (let i = r.entities.length - 1; i >= 0; i--) {
+    const e = r.entities[i];
+    const y = r.travelled - e.dist;
+    if (y > L.fieldHcells + 3) {
+      if (e.kind === 'obs' && !e.hitDone) {
+        r.dodges++;
+        if (r.trait === 'miner') { r.coins += 1; S.save.coins += 1; floatText(L.fieldX + (r.shipX + 0.5) * L.cell, shipY * L.cell - 26, '+1', '#ffd76a'); }
+        if (e.type === 'blackhole') r.bhEscaped++;
+        else if (e.minDx !== undefined && e.minDx < 0.95) {
+          r.near = (r.near || 0) + 1;
+          const b = r.trait === 'reaper' ? 10 : 2;
+          r.coins += b; S.save.coins += b;
+          floatText(L.fieldX + (r.shipX + 0.5) * L.cell, shipY * L.cell - 34, t('near', { n: b }), '#9ef0ff');
+          Aud.tone(1250, 0.05, 'square', 0.07);
+        }
+      }
+      if (e.kind === 'coin' && !e.taken) { r.coinMissed++; r.combo = 0; }
+      r.entities.splice(i, 1);
+      continue;
+    }
+    if (e.kind === 'obs') {
+      e.age += dt; e.rot += e.vr * dt;
+      if (e.type === 'debris') {
+        const span = 0.42, per = span / Math.max(0.05, Math.abs(e.drift));
+        const ph = (e.age / per) % 2, tri = ph < 1 ? ph : 2 - ph;
+        e.x = clamp(e.lane + (tri * 2 - 1) * span * (e.drift > 0 ? 1 : -1), -0.2, 2.2);
+      }
+      if (e.type === 'blackhole') {
+        const dy = shipY - y;
+        if (Math.abs(dy) < 7 && r.laneT >= 1) {
+          const pull = (1 - Math.abs(dy) / 7) * 1.05 * dt;
+          r.shipX = clamp(r.shipX + Math.sign(e.x - r.shipX) * pull, -0.15, 2.15);
+        }
+      }
+      if (!e.hitDone && Math.abs(y - shipY) < 1.3) {
+        const dxx = Math.abs(e.x - r.shipX);
+        if (e.minDx === undefined || dxx < e.minDx) e.minDx = dxx;
+      }
+      if (!e.hitDone && r.invulnT <= 0 && Math.abs(y - shipY) < (0.42 + 0.42) * CFG.HIT_MARGIN) {
+        const dx = Math.abs(e.x - r.shipX);
+        const lim = (e.type === 'blackhole' ? 0.40 : (0.30 + 0.42)) * CFG.HIT_MARGIN + (e.type === 'blackhole' ? 0.08 : 0);
+        if (dx < lim) {
+          e.hitDone = true;
+          if (r.shield) {
+            r.shield = false; r.shieldBlocks++; r.invulnT = 1.2; r.nodmgStart = r.dist_m;
+            r.entities.splice(i, 1);
+            Aud.power(); S.flash = 0.22;
+            particles(L.fieldX + (e.x + 0.5) * L.cell, y * L.cell, 24, ['#9ef0ff', '#5a7bff', '#ffffff'], 6, 0.7);
+            toast(t('pu_shield') + '!', 'shield');
+            continue;
+          }
+          if (S.god) { r.entities.splice(i, 1); r.dodges++; continue; }
+          if (r.phaseT > 0) continue;
+          if (r.trait === 'tanker' && r.fuel > 25) {
+            r.fuel -= Math.max(10, 25 - r.stars * 5);
+            r.invulnT = 1.2; r.hitsTaken++;
+            r.nodmgStart = r.dist_m;
+            r.entities.splice(i, 1);
+            Aud.crash(); S.shake = 0.3; S.shakeMag = 10;
+            particles(L.fieldX + (r.shipX + 0.5) * L.cell, shipY * L.cell, 18, ['#ff8a50', '#ffd76a'], 5, 0.6);
+            toast(t('tr_tanker') + ': -25', 'fuel');
+            continue;
+          }
+          r.hitsTaken++;
+          endRun('crash');
+          return;
+        }
+      }
+    } else if (e.kind === 'coin') {
+      if (magOn && !e.taken) {
+        const mr = r.magnetT > 0 ? CFG.MAGNET_R : r.passiveMag;
+        const dx = r.shipX - e.x, dy = shipY - y;
+        if (Math.abs(dx) < mr && Math.abs(dy) < mr && dy > -1) {
+          const sp = 7 * dt;
+          e.x += clamp(dx, -sp, sp);
+          e.dist -= clamp(dy, -sp, sp);
+        }
+      }
+      if (!e.taken && Math.abs(y - shipY) < 0.62 && Math.abs(e.x - r.shipX) < 0.55) {
+        e.taken = true; r.entities.splice(i, 1);
+        collectCoin(r);
+        continue;
+      }
+      if (!e.taken && r.trait === 'escort') {
+        const dx2 = clamp(r.lane + r.droneSide, 0, 2);
+        if (Math.abs(y - shipY) < 0.7 && Math.abs(e.x - dx2) < 0.5) {
+          e.taken = true; r.entities.splice(i, 1);
+          collectCoin(r, true);
+          continue;
+        }
+      }
+    } else if (e.kind === 'item') {
+      if (!e.taken && Math.abs(y - shipY) < 0.66 && Math.abs(e.x - r.shipX) < 0.58) {
+        e.taken = true; r.entities.splice(i, 1);
+        const px = L.fieldX + (e.x + 0.5) * L.cell;
+        if (e.type === 'fuel') { r.fuel = Math.min(r.fuelCap, r.fuel + CFG.FUEL_CAN); r.cansCollected++; Aud.fuel(); toast('+30 ' + t('pu_fuel'), 'fuel'); }
+        else if (e.type === 'boost') { r.boostT = 3; r.fuel = Math.max(1, r.fuel - 5); Aud.power(); toast(t('boost_pad'), 'od'); }
+        else if (e.type === 'portal') {
+          r.bonusT = 8; Aud.power(); toast(t('portal_in'), 'star');
+          for (let k = 0; k < 14; k++) r.entities.push({ kind: 'coin', type: 'coin', x: Math.floor(Math.random() * 3), lane: 0, dist: r.travelled + (L.fieldHcells - CFG.SHIP_Y) + 3 + k * 1.1, taken: false, ph: Math.random() * 6.28 });
+        }
+        else if (e.type === 'trader') {
+          if (S.save.coins >= 30) {
+            S.save.coins -= 30;
+            const k = ['shield', 'magnet', 'double'][Math.floor(Math.random() * 3)];
+            if (k === 'shield') r.shield = true;
+            if (k === 'magnet') r.magnetT = CFG.MAGNET_TIME;
+            if (k === 'double') r.doubleT = CFG.DOUBLE_TIME;
+            toast(t('trader_ok') + ': ' + t('pu_' + k), 'chest');
+            Aud.power();
+          } else toast(t('trader_poor'), 'chest');
+        }
+        else if (e.type === 'shield') { r.shield = true; r.powerupsCollected++; Aud.power(); toast(t('pu_shield'), 'shield'); }
+        else if (e.type === 'magnet') { r.magnetT = CFG.MAGNET_TIME * r.ship.stats.mag; r.powerupsCollected++; Aud.power(); toast(t('pu_magnet'), 'magnet'); }
+        else if (e.type === 'double') { r.doubleT = CFG.DOUBLE_TIME; r.powerupsCollected++; Aud.power(); toast(t('pu_double'), 'star'); }
+        particles(px, y * L.cell, 16, ['#9ef0ff', '#ffd76a', '#ffffff'], 4, 0.6);
+        continue;
+      }
+    }
+  }
+  if (r.entities.length > SD.perf.entsMax) SD.perf.entsMax = r.entities.length;
+
+  // engine sparks
+  if (Math.random() < 0.9) {
+    const px = L.fieldX + (r.shipX + 0.5) * L.cell + (Math.random() - 0.5) * L.cell * 0.22;
+    const py = shipY * L.cell + L.cell * 0.44;
+    P.push({ x: px, y: py, vx: (Math.random() - 0.5) * 34, vy: 100 + Math.random() * 70 + r.speed * 8,
+      life: 0.4 + Math.random() * 0.25, t: 0, size: 2.5 + Math.random() * 4, col: r.doubleT > 0 ? '#ffd76a' : '#6fb1ff' });
+    if (P.length > CFG.PARTICLE_CAP) P.splice(0, P.length - CFG.PARTICLE_CAP);
+  }
+  Aud.engineSet((r.speed - CFG.SPEED_START) / 10, true);
+
+  if (S.tut.active) {
+    if (S.tut.step === 1 && SD.input.moves > 0) tutStep(2);
+    else if (S.tut.step === 2 && r.dodges >= 1) tutStep(3);
+    else if (S.tut.step === 3 && r.coins >= 1) tutDone();
+  }
+  if (S.bot) botTick();
+}
+function collectCoin(r, byDrone) {
+  let val = r.ship.stats.coin * (r.doubleT > 0 ? 2 : 1) * (r.od.t > 0 ? 2 : 1);
+  if (r.trait === 'smuggler') val *= 2;
+  if (r.trait === 'magnetolog') val = Math.max(1, Math.floor(val * 0.5));
+  val = Math.max(1, Math.round(val));
+  r.coins += val;
+  S.save.coins += val;
+  r.combo++; r.comboT = CFG.COMBO_WINDOW; r.coinSeq++;
+  Aud.coin(r.combo);
+  const px = L.fieldX + (r.shipX + 0.5) * L.cell, py = (L.fieldHcells - CFG.SHIP_Y) * L.cell;
+  particles(px, py, 5, ['#ffd76a', '#fff6c9'], 3, 0.35);
+  floatText(px, py - 22, '+' + val, '#ffd76a');
+  if (r.combo > 0 && r.combo % CFG.COMBO_STEP === 0) {
+    S.save.coins += CFG.COMBO_BONUS; r.coins += CFG.COMBO_BONUS;
+    toast(t('combo', { n: r.combo }) + ' — ' + t('combo_bonus', { n: CFG.COMBO_BONUS }), 'flame');
+    Aud.power();
+  }
+  syncCoinsUI();
+  saveGame(false);
+}
+
+/* ================= FX ================= */
+const P = [];
+const FT = [];
+function particles(x, y, n, cols, spd, life) {
+  for (let i = 0; i < n; i++) {
+    if (P.length >= CFG.PARTICLE_CAP) break;
+    const a = Math.random() * 6.28, v = (0.3 + Math.random()) * spd * 30;
+    P.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: life * (0.6 + Math.random() * 0.8), t: 0,
+      size: 2 + Math.random() * 4, col: cols[Math.floor(Math.random() * cols.length)] });
+  }
+}
+function floatText(x, y, txt, col) {
+  if (FT.length > 24) FT.shift();
+  FT.push({ x, y, txt, col, t: 0, life: 0.8 });
+}
+function updateFx(dt) {
+  for (let i = P.length - 1; i >= 0; i--) {
+    const p = P[i]; p.t += dt;
+    if (p.t >= p.life) { P.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.985; p.vy *= 0.985;
+  }
+  for (let i = FT.length - 1; i >= 0; i--) { const f = FT[i]; f.t += dt; if (f.t >= f.life) FT.splice(i, 1); }
+  if (S.boomFx) { S.boomFx.t += dt; if (S.boomFx.t > 0.42) S.boomFx = null; }
+  if (S.shake > 0) S.shake = Math.max(0, S.shake - dt);
+  if (S.flash > 0) S.flash = Math.max(0, S.flash - dt);
+  if (S.hitstop > 0) S.hitstop = Math.max(0, S.hitstop - dt);
+}
+
+/* ================= BOT ================= */
+function botTick() {
+  const r = S.run;
+  if (!r || r.over || r.laneT < 1) return;
+  const shipY = L.fieldHcells - CFG.SHIP_Y;
+  if (r.laneT >= 1 && Math.abs(r.shipX - r.lane) > 0.3) { r.laneFrom = r.shipX; r.laneT = 0; }
+  const look = Math.min(r.speed * 1.15, shipY + 2);
+  const score = [0, 0, 0];
+  for (const e of r.entities) {
+    const y = r.travelled - e.dist;
+    if (e.kind === 'obs') {
+      const d = shipY - y;
+      if (d > -0.5 && d < look) {
+        const w = 1 - d / look;
+        for (let l = 0; l < 3; l++) score[l] += (Math.abs(e.x - l) < 0.75 ? 1 : 0.12) * w * 3;
+      }
+    } else if (e.kind === 'coin') {
+      const d = shipY - y;
+      if (d > 0 && d < look * 1.2) for (let l = 0; l < 3; l++) score[l] -= (Math.abs(e.x - l) < 0.5 ? 0.5 : 0) * (1 - d / (look * 1.2));
+    }
+  }
+  let best = r.lane, bs = score[r.lane];
+  for (let l = 0; l < 3; l++) if (score[l] < bs - 0.15) { bs = score[l]; best = l; }
+  if (best !== r.lane) moveLane(best > r.lane ? 1 : -1);
+}
+
+/* ================= INPUT ================= */
+const SDin = { down: false, x0: 0, y0: 0, consumed: false };
+const SD = {
+  version: '2.0.0',
+  booted: false,
+  input: { swipes: 0, keys: 0, moves: 0, walls: 0, dropped: 0 },
+  perf: { frames: 0, fps: 60, maxFrameMs: 0, genMaxMs: 0, entsMax: 0 },
+  events: { runs: 0, saves: 0, pauses: 0, resumes: 0, rewarded: 0, fullscreen: 0, langSwitch: 0 },
+  errors: [],
+};
+function moveLane(dir) {
+  const r = S.run;
+  if (!r || S.screen !== 'playing' || r.over) { SD.input.dropped++; return false; }
+  const target = clamp(r.lane + dir, 0, 2);
+  if (target === r.lane) { SD.input.walls++; return false; }
+  r.laneFrom = r.shipX; r.lane = target; r.laneT = 0;
+  SD.input.moves++;
+  Aud.whoosh();
+  return true;
+}
+function bindInput() {
+  const el = D.cv;
+  el.addEventListener('pointerdown', ev => {
+    Aud.ensure(); Aud.resume();
+    SDin.down = true; SDin.x0 = ev.clientX; SDin.y0 = ev.clientY; SDin.consumed = false;
+    SD.input.swipes++;
+  }, { passive: true });
+  el.addEventListener('pointermove', ev => {
+    if (!SDin.down || SDin.consumed) return;
+    const dx = ev.clientX - SDin.x0, dy = ev.clientY - SDin.y0;
+    if (Math.abs(dx) > 26 && Math.abs(dx) > Math.abs(dy) * 1.2) { SDin.consumed = true; moveLane(dx > 0 ? 1 : -1); }
+    else if (Math.abs(dy) > 30 && Math.abs(dy) > Math.abs(dx) * 1.2) { SDin.consumed = true; if (dy < 0) overdrive(); else bomberShot(); }
+  }, { passive: true });
+  window.addEventListener('pointerup', () => { SDin.down = false; }, { passive: true });
+  window.addEventListener('pointercancel', () => { SDin.down = false; }, { passive: true });
+  window.addEventListener('keydown', ev => {
+    if (ev.repeat) return;
+    Aud.ensure(); Aud.resume();
+    if (ev.key === 'ArrowLeft' || ev.key === 'a' || ev.key === 'A' || ev.key === 'ф' || ev.key === 'Ф') { SD.input.keys++; moveLane(-1); ev.preventDefault(); }
+    else if (ev.key === 'ArrowRight' || ev.key === 'd' || ev.key === 'D' || ev.key === 'в' || ev.key === 'В') { SD.input.keys++; moveLane(1); ev.preventDefault(); }
+    else if (ev.key === 'ArrowUp' || ev.key === 'w' || ev.key === 'W') { overdrive(); ev.preventDefault(); }
+    else if (ev.key === 'ArrowDown' || ev.key === 's' || ev.key === 'S') { bomberShot(); ev.preventDefault(); }
+    else if (ev.key === ' ' || ev.key === 'Enter') { chronoUse(); ev.preventDefault(); }
+    else if (ev.key === 'Escape' || ev.key === 'p' || ev.key === 'P') { if (S.screen === 'playing') doPause('manual'); else if (S.screen === 'paused') doResume(); }
+  });
+  window.addEventListener('contextmenu', ev => ev.preventDefault());
+  window.addEventListener('touchmove', ev => {
+    const tg = ev.target;
+    if (tg && tg.closest && tg.closest('.list,.obox')) return;
+    if (ev.cancelable) ev.preventDefault();
+  }, { passive: false });
+  document.addEventListener('gesturestart', ev => ev.preventDefault());
+  document.addEventListener('dblclick', ev => ev.preventDefault());
+  window.addEventListener('resize', layout);
+  window.addEventListener('orientationchange', () => setTimeout(layout, 120));
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) doPause('external');
+    else if (S.pauseSource === 'external') doResume();
+  });
+  window.addEventListener('pagehide', () => saveGame(true));
+  window.addEventListener('error', e => SD.errors.push('error: ' + (e.message || 'unknown')));
+  window.addEventListener('unhandledrejection', e => SD.errors.push('rejection: ' + ((e.reason && e.reason.message) || 'unknown')));
+}
+
+/* ================= PAUSE / ADS ================= */
+function doPause(src) {
+  SD.events.pauses++;
+  if (S.screen === 'playing') {
+    S.screen = 'paused'; S.pauseSource = src;
+    showScreen('pause');
+    Aud.engineSet(0, false);
+    Aud.suspend();
+    try { Platform.adapter.gameplayStop(); } catch (e) {}
+  } else if (src === 'external') Aud.suspend();
+}
+function doResume() {
+  SD.events.resumes++;
+  Aud.resume();
+  if (S.screen === 'paused') {
+    S.screen = 'playing'; S.pauseSource = null;
+    showScreen('hud');
+    Aud.engineStart();
+    try { Platform.adapter.gameplayStart(); } catch (e) {}
+  }
+}
+function canInterstitial() {
+  const n = Date.now();
+  return (n - S.sessionStart > CFG.AD_GRACE) && (n - S.lastInter > CFG.AD_COOLDOWN);
+}
+function showInterstitial(after) {
+  if (!canInterstitial()) { after && after(); return; }
+  S.lastInter = Date.now();
+  SD.events.fullscreen++;
+  Aud.engineSet(0, false);
+  let done = false;
+  const fin = () => { if (!done) { done = true; after && after(); } };
+  try { Platform.adapter.interstitial(fin, fin); } catch (e) { fin(); }
+}
+function showRewarded(onReward) {
+  SD.events.rewarded++;
+  let granted = false;
+  const grant = () => { if (!granted) { granted = true; onReward(); } };
+  try {
+    Platform.adapter.rewarded(grant, () => {}, () => { toast(t('ad_unavailable')); grant(); });
+  } catch (e) { grant(); }
+}
+
+/* ================= RENDER ================= */
+let lastTs = 0, fpsAcc = 0, fpsN = 0, pulseT = 0;
+function frame(ts) {
+  requestAnimationFrame(frame);
+  const t0 = performance.now();
+  if (!lastTs) lastTs = ts;
+  let dt = (ts - lastTs) / 1000;
+  lastTs = ts;
+  if (dt > 0.05) dt = 0.05;
+  if (dt <= 0) dt = 1 / 60;
+  SD.perf.frames++;
+  fpsAcc += dt; fpsN++;
+  if (fpsAcc >= 0.5) { SD.perf.fps = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; }
+
+  if (S.screen === 'playing' && S.hitstop <= 0) {
+    S.playedMs += dt * 1000;
+    updateRun(dt);
+  }
+  updateFx(dt);
+  updateStars(dt);
+  render();
+  if (S.screen === 'playing' || S.screen === 'paused') updateHud();
+  const ms = performance.now() - t0;
+  if (SD.perf.frames > 120 && ms > SD.perf.maxFrameMs) SD.perf.maxFrameMs = ms;  // steady-state metric
+}
+function updateStars(dt) {
+  const r = S.run;
+  const spd = (S.screen === 'playing' && r && !r.over) ? r.speed : 3;
+  deepOff = (deepOff + spd * 0.05 * L.cell * dt * 0.55) % Math.max(1, L.ch);
+  for (const d of dust) {
+    d.y += spd * 1.5 * L.cell * dt * 0.55;
+    if (d.y > L.ch + 20) { d.y = -20; d.x = Math.floor(Math.random() * L.cw); }
+  }
+  S.shootAt -= dt;
+  if (!S.shootStar && S.shootAt <= 0) {
+    S.shootStar = { x: Math.random() * L.cw, y: -20, vx: 260 + Math.random() * 200, vy: 420 + Math.random() * 240, t: 0 };
+    S.shootAt = 5 + Math.random() * 7;
+  }
+  if (S.shootStar) {
+    const s = S.shootStar; s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt;
+    if (s.t > 0.9 || s.y > L.ch + 40) S.shootStar = null;
+  }
+  pulseT += dt;
+}
+function render() {
+  const g = D.cv_ctx;
+  g.setTransform(L.dpr, 0, 0, L.dpr, 0, 0);
+  g.imageSmoothingEnabled = false;
+  g.clearRect(0, 0, L.cw, L.ch);
+  if (L.bg) g.drawImage(L.bg, 0, 0);
+  if (L.deep) { const oy = Math.floor(deepOff); g.drawImage(L.deep, 0, oy); g.drawImage(L.deep, 0, oy - L.ch); }
+  for (const d of dust) {
+    g.fillStyle = d.a ? 'rgba(190,215,255,.20)' : 'rgba(190,215,255,.12)';
+    g.fillRect(d.x, Math.floor(d.y), 1, 3);
+  }
+  if (S.shootStar) {
+    const s2 = S.shootStar;
+    g.fillStyle = '#e8f2ff';
+    for (let i = 0; i < 5; i++) g.fillRect(Math.floor(s2.x - i * 3), Math.floor(s2.y - i * 4), 2, 2);
+  }
+  let ox = 0, oy2 = 0;
+  if (S.shake > 0) {
+    ox = Math.round((Math.random() - 0.5) * S.shakeMag * S.shake * 2);
+    oy2 = Math.round((Math.random() - 0.5) * S.shakeMag * S.shake * 2);
+  }
+  g.save(); g.translate(ox, oy2);
+  const fx = L.fieldX, fw = L.fieldW, cell = L.cell;
+  if (L.rail) g.drawImage(L.rail, fx - 8, 0);
+  if (L.pulse) {
+    const gap = 240;
+    for (let k = 0; k < 2; k++) {
+      const ex = fx + (k ? fw - 4 : 0);
+      for (let py = (pulseT * 260) % gap - gap; py < L.ch; py += gap) g.drawImage(L.pulse, Math.floor(ex) + 1, Math.floor(py));
+    }
+  }
+  const r = S.run;
+  const playing = (S.screen === 'playing' || S.screen === 'paused' || S.screen === 'gameover') && r;
+  if (playing) {
+    const off = Math.floor((r.travelled * cell) % 30);
+    g.fillStyle = '#1c2547';
+    for (let i = 1; i < 3; i++) for (let y = -off; y < L.ch; y += 30) g.fillRect(fx + Math.floor(i * cell) - 1, y, 2, 12);
+    if (r.storm > 0) {
+      g.fillStyle = 'rgba(255,64,48,' + (0.05 + 0.04 * Math.sin(r.t * 10)).toFixed(3) + ')';
+      g.fillRect(fx - 8, 0, fw + 16, L.ch);
+    }
+    if (r.bonusT > 0) {
+      g.fillStyle = 'rgba(120,90,255,.07)';
+      g.fillRect(fx - 8, 0, fw + 16, L.ch);
+    }
+    if (r.od.t > 0) {
+      g.fillStyle = 'rgba(255,190,70,.06)';
+      g.fillRect(fx - 8, 0, fw + 16, L.ch);
+    }
+    if (r.speed > 9) {
+      g.fillStyle = 'rgba(200,225,255,.28)';
+      for (let i = 0; i < 7; i++) {
+        const sx2 = fx + ((i * 97 + Math.floor(r.travelled * 5) * 31) % fw);
+        const sy2 = ((i * 211 + r.travelled * cell * 2.2) % (L.ch + 120)) - 60;
+        g.fillRect(Math.floor(sx2), Math.floor(sy2), 1, 26 + r.speed * 2);
+      }
+    }
+    const shipY = (L.fieldHcells - CFG.SHIP_Y) * cell;
+    if (r.trait === 'scout') {
+      g.globalAlpha = 0.26;
+      for (const e of r.entities) {
+        if (e.kind !== 'obs') continue;
+        const y = (r.travelled - e.dist) * cell;
+        if (y < -cell * 9 || y >= -cell * 1.8) continue;
+        const x = fx + (e.x + 0.5) * cell;
+        const sp = baked('ast' + (e.astI || 0), LOW.ast[e.astI || 0]);
+        g.drawImage(sp, Math.floor(x - sp.width / 2), Math.floor(y - sp.height / 2));
+      }
+      g.globalAlpha = 1;
+    }
+    for (const e of r.entities) {
+      const y = (r.travelled - e.dist) * cell;
+      if (y < -cell * 1.8 || y > L.ch + cell * 1.8) continue;
+      const x = fx + (e.x + 0.5) * cell;
+      if (e.kind === 'obs') {
+        if (e.type === 'asteroid') {
+          const sp = baked('ast' + e.astI, LOW.ast[e.astI]);
+          g.drawImage(sp, Math.floor(x - sp.width / 2), Math.floor(y - sp.height / 2));
+        } else if (e.type === 'pillar') {
+          const sp = baked('pillar', LOW.pillar);
+          g.drawImage(sp, Math.floor(x - sp.width / 2), Math.floor(y - sp.height / 2));
+        } else if (e.type === 'debris') {
+          const sp = baked('deb', LOW.debris);
+          const bob = Math.floor(Math.sin(e.age * 3) * 2);
+          g.drawImage(sp, Math.floor(x - sp.width / 2), Math.floor(y - sp.height / 2) + bob);
+          if (Math.random() < 0.18) particles(x, y, 1, ['#ffd76a'], 1, 0.25);
+        } else {
+          const fr = Math.floor(r.t * 6 + e.ph) % 2;
+          const sp = baked('hole' + fr, LOW.hole[fr], 2);
+          g.drawImage(sp, Math.floor(x - sp.width / 2), Math.floor(y - sp.height / 2));
+        }
+      } else if (e.kind === 'coin') {
+        const fr = Math.floor(r.t * 8 + e.ph) % 4;
+        const sp = baked('coin' + fr, LOW.coin[fr]);
+        g.drawImage(sp, Math.floor(x - sp.width / 2), Math.floor(y - sp.height / 2));
+      } else {
+        const low = e.type === 'fuel' ? LOW.fuel : e.type === 'shield' ? LOW.shield : e.type === 'magnet' ? LOW.magnet : e.type === 'double' ? LOW.double : e.type === 'boost' ? LOW.boost : e.type === 'portal' ? LOW.portal : LOW.trader;
+        const sp = baked('it' + e.type, low);
+        const yy = y + Math.sin(r.t * 4 + (e.ph || 0)) * 2;
+        g.drawImage(sp, Math.floor(x - sp.width / 2), Math.floor(yy - sp.height / 2));
+      }
+    }
+    if (r.magnetT > 0) {
+      g.fillStyle = 'rgba(158,240,255,.5)';
+      const cx = fx + (r.shipX + 0.5) * cell;
+      const rr2 = CFG.MAGNET_R * cell;
+      for (let a = 0; a < 40; a++) {
+        const ang = a / 40 * 6.28 + r.t;
+        g.fillRect(Math.floor(cx + Math.cos(ang) * rr2), Math.floor(shipY + Math.sin(ang) * rr2), 2, 2);
+      }
+    }
+    if (S.screen !== 'gameover' || r.reason === 'fuel') {
+      const sx = fx + (r.shipX + 0.5) * cell;
+      const blink = r.invulnT > 0 && Math.floor(r.t * 12) % 2 === 0;
+      if (r.phaseT > 0) g.globalAlpha = 0.45;
+      const sp = baked('ship' + r.ship.id, LOW.ships[(r.ship.id - 1) % LOW.ships.length]);
+      const ff = Math.floor(r.t * 24) % 3;
+      const fl = baked('flame' + ff, LOW.flame[ff]);
+      g.save();
+      g.translate(Math.floor(sx), Math.floor(shipY));
+      const tilt = clamp((r.lane - r.shipX) * 0.35, -0.3, 0.3);
+      if (tilt) g.rotate(tilt);
+      if (blink) g.globalAlpha = 0.4;
+      g.drawImage(fl, -Math.floor(fl.width / 2), Math.floor(sp.height / 2) - 2 * PS);
+      g.drawImage(sp, -Math.floor(sp.width / 2), -Math.floor(sp.height / 2));
+      g.globalAlpha = 1;
+      g.restore();
+      if (r.trait === 'escort') {
+        const dxp = fx + (clamp(r.lane + r.droneSide, 0, 2) + 0.5) * cell;
+        const dp = baked('drone', LOW.drone);
+        g.drawImage(dp, Math.floor(dxp - dp.width / 2), Math.floor(shipY - cell * 0.9 - dp.height / 2 + Math.sin(r.t * 5) * 2));
+      }
+      if (r.shield) {
+        g.strokeStyle = 'rgba(126,220,255,.85)'; g.lineWidth = 2;
+        g.setLineDash([6, 6]); g.lineDashOffset = -r.t * 30;
+        g.beginPath(); g.arc(Math.floor(sx), Math.floor(shipY), cell * 0.62, 0, 7); g.stroke();
+        g.setLineDash([]);
+      }
+    }
+    if (S.boomFx) {
+      const bf = S.boomFx;
+      const fr = Math.min(2, Math.floor(bf.t * 14));
+      const sp = baked('boom' + fr, LOW.boom[fr], 2);
+      g.drawImage(sp, Math.floor(bf.x - sp.width / 2), Math.floor(bf.y - sp.height / 2));
+    }
+  }
+  for (const p of P) {
+    const a = 1 - p.t / p.life;
+    g.globalAlpha = a;
+    g.fillStyle = p.col;
+    const sz = Math.max(2, Math.round(p.size * a));
+    g.fillRect(Math.floor(p.x + ox), Math.floor(p.y + oy2), sz, sz);
+  }
+  g.globalAlpha = 1;
+  for (const f of FT) {
+    const a = 1 - f.t / f.life;
+    g.globalAlpha = a;
+    g.fillStyle = f.col;
+    g.font = '900 15px system-ui, sans-serif'; g.textAlign = 'center';
+    g.fillText(f.txt, Math.floor(f.x), Math.floor(f.y - f.t * 42));
+  }
+  g.globalAlpha = 1;
+  g.restore();
+  if (S.flash > 0) { g.fillStyle = 'rgba(220,240,255,' + (S.flash * 1.1).toFixed(3) + ')'; g.fillRect(0, 0, L.cw, L.ch); }
+  if (playing && r.fuel < 25 && S.screen === 'playing') {
+    const a = 0.10 + Math.sin(performance.now() / 200) * 0.06;
+    g.fillStyle = 'rgba(224,80,60,' + Math.max(0, a).toFixed(3) + ')';
+    for (let y = 0; y < L.ch; y += 4) g.fillRect(0, y, L.cw, 1);
+  }
+}
+
+/* ================= HUD ================= */
+let hudCache = { d: -1, c: -1, f: -1, s: -1, pu: '', sk: null };
+function updateHud() {
+  const r = S.run;
+  if (!r) return;
+  const dm = Math.floor(r.dist_m);
+  if (dm !== hudCache.d) { D.hud_dist.textContent = t('distance_m', { n: dm }); hudCache.d = dm; }
+  if (r.coins !== hudCache.c) { D.hud_coins.innerHTML = pixIconSVG('coin', 14) + ' ' + r.coins; hudCache.c = r.coins; }
+  const fp = Math.round(r.fuel / r.fuelCap * 100);
+  if (fp !== hudCache.f) {
+    D.hud_fuel.style.width = fp + '%';
+    D.hud_fuel.classList.toggle('low', r.fuel < 25);
+    hudCache.f = fp;
+  }
+  const sp = Math.round((Math.min(CFG.SPEED_MAX, r.speed) - CFG.SPEED_START) / (CFG.SPEED_MAX - CFG.SPEED_START) * 100);
+  if (sp !== hudCache.s) { D.hud_speed.style.width = sp + '%'; hudCache.s = sp; }
+  let pu = '';
+  if (r.shield) pu += '<span class="pu-chip shield">' + pixIconSVG('shield', 12) + ' ' + t('pu_shield') + '</span>';
+  if (r.magnetT > 0) pu += '<span class="pu-chip magnet">' + pixIconSVG('magnet', 12) + ' ' + Math.ceil(r.magnetT) + 's</span>';
+  if (r.doubleT > 0) pu += '<span class="pu-chip double">' + pixIconSVG('star', 12) + ' ×2 ' + Math.ceil(r.doubleT) + 's</span>';
+  if (r.combo >= 3) pu += '<span class="pu-chip combo">' + pixIconSVG('flame', 12) + ' ' + t('combo', { n: r.combo }) + '</span>';
+  if (r.storm > 0) pu += '<span class="pu-chip storm">' + pixIconSVG('flame', 12) + ' ' + t('storm_now') + '</span>';
+  if (pu !== hudCache.pu) { D.pu_chips.innerHTML = pu; hudCache.pu = pu; }
+  const sb = D.skill_bar;
+  if (sb) {
+    let html = '';
+    const odReady = r.od.t <= 0 && r.od.heat <= 0 && r.od.cd <= 0;
+    html += '<button id="sk-od" class="sk' + (r.od.t > 0 ? ' on' : odReady ? '' : ' off') + '">' + pixIconSVG('od', 18) +
+      '<em>' + (r.od.t > 0 ? t('od_active') : r.od.heat > 0 ? t('od_heat') : r.od.cd > 0 ? t('od_cd') : t('od_ready')) + '</em></button>';
+    if (r.trait === 'bomber') html += '<button id="sk-bomb" class="sk' + (r.bombs > 0 ? '' : ' off') + '">' + pixIconSVG('bomb', 18) + '<em>' + t('skill_bomb', { n: r.bombs }) + '</em></button>';
+    if (r.trait === 'chrono') html += '<button id="sk-chrono" class="sk' + (r.chronoUsed ? ' off' : '') + '">' + pixIconSVG('clock', 18) + '<em>' + t('skill_chrono') + '</em></button>';
+    if (html !== hudCache.sk) {
+      sb.innerHTML = html; hudCache.sk = html;
+      const b1 = document.getElementById('sk-od'); if (b1) b1.addEventListener('click', ev => { ev.stopPropagation(); overdrive(); });
+      const b2 = document.getElementById('sk-bomb'); if (b2) b2.addEventListener('click', ev => { ev.stopPropagation(); bomberShot(); });
+      const b3 = document.getElementById('sk-chrono'); if (b3) b3.addEventListener('click', ev => { ev.stopPropagation(); chronoUse(); });
+    }
+  }
+}
+
+/* ================= SCREENS / UI ================= */
+function showScreen(name) {
+  if (name !== 'hud') D.tut.classList.remove('active');
+  for (const el of document.querySelectorAll('.screen')) el.classList.remove('active');
+  D.scr_pause.classList.remove('active');
+  D.scr_over.classList.remove('active');
+  D.scr_ship.classList.remove('active');
+  D.hud.classList.remove('active');
+  if (name === 'hud') D.hud.classList.add('active');
+  else if (name === 'pause') { D.hud.classList.add('active'); D.scr_pause.classList.add('active'); }
+  else if (name === 'over') D.scr_over.classList.add('active');
+  else { const el = D['scr_' + name]; if (el) el.classList.add('active'); }
+  S.screen = name === 'hud' ? 'playing' : (name === 'pause' ? 'paused' : (name === 'over' ? 'gameover' : name));
+  if (name === 'menu') { S.run = null; syncCoinsUI(); renderMenu(); }
+  if (name === 'missions') renderMissions();
+  if (name === 'ships') renderShips();
+  if (name === 'ach') renderAchs();
+  if (name === 'daily') renderDaily();
+  if (name === 'set') renderSettings();
+}
+function syncCoinsUI() {
+  for (const el of document.querySelectorAll('.coins-pill .ic')) el.innerHTML = pixIconSVG('coin', 16);
+  D.menu_coins.textContent = S.save ? S.save.coins : 0;
+  for (const el of document.querySelectorAll('.mc-coins')) el.textContent = S.save ? S.save.coins : 0;
+}
+function renderMenu() {
+  const b = S.save.best_distances;
+  D.menu_best.textContent = t('best', { n: Math.max(b.endless, b.mission, b.daily) });
+  renderBoosters();
+  renderQuests();
+  renderWeekly();
+  syncCoinsUI();
+}
+function renderQuests() {
+  ensureQuests();
+  const box = D.quests_box;
+  if (!box) return;
+  const qs = S.save.quests;
+  let html = '<div class="qhead">' + pixIconSVG('quest', 14) + ' ' + esc(t('quests_title')) + '</div>';
+  qs.list.forEach((q, i) => {
+    const d = QUEST_DEFS[q.type];
+    const done = q.prog >= q.target;
+    html += '<div class="qrow' + (q.claimed ? ' done' : '') + '"><span class="qt">' + esc(t(d.key, { n: q.target })) + '</span>' +
+      '<span class="qp">' + Math.min(q.prog, q.target) + '/' + q.target + '</span>' +
+      (q.claimed ? '<span class="tag">' + esc(t('quest_done')) + '</span>'
+        : done ? '<button class="btn small gold" data-qi="' + i + '">' + esc(t('quest_claim')) + ' +' + q.reward + '</button>'
+        : '<span class="qp rw">+' + q.reward + '</span>') + '</div>';
+  });
+  const ch = chestNext();
+  const st = S.save.questStreak;
+  html += '<div class="qrow chest"><span class="qt">' + pixIconSVG('chest', 14) + ' ' + esc(t('chest_title', { n: st.days })) + '</span>' +
+    (ch ? '<button class="btn small purple" id="chest-btn">' + esc(t('chest_open')) + ' (' + ch + ')</button>'
+        : '<span class="qp">' + esc(t('chest_next', { n: CFG.CHEST_DAYS.find(x => x > st.days) || 14 })) + '</span>') + '</div>';
+  box.innerHTML = html;
+}
+function renderWeekly() {
+  const box = D.weekly_box;
+  if (!box) return;
+  const w = (S.save.weekly || []).slice(0, 3);
+  let html = '<div class="qhead">' + pixIconSVG('trophy', 14) + ' ' + esc(t('weekly_title')) + '</div>';
+  if (!w.length) html += '<div class="qrow"><span class="qt">—</span></div>';
+  w.forEach((e, i) => {
+    html += '<div class="qrow"><span class="qt">' + (i + 1) + '. ' + esc(t(shipById(e.s || 1).nameKey)) + '</span><span class="qp">' + e.d + ' м · ' + e.c + ' 🪙'.replace('🪙', '') + '</span></div>';
+  });
+  box.innerHTML = html;
+}
+function renderBoosters() {
+  D.bst_shield.classList.toggle('on', S.boost.shield);
+  D.bst_magnet.classList.toggle('on', S.boost.magnet);
+  D.bst_shield_buy.textContent = S.boost.shield ? '✔' : t('booster_cost', { n: CFG.BOOSTER_COST });
+  D.bst_magnet_buy.textContent = S.boost.magnet ? '✔' : t('booster_cost', { n: CFG.BOOSTER_COST });
+}
+function toast(msg, icon) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  if (icon) el.innerHTML = pixIconSVG(icon, 14) + ' ';
+  el.appendChild(document.createTextNode(msg));
+  D.toast_box.appendChild(el);
+  setTimeout(() => { el.style.transition = 'opacity .4s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 420); }, 2600);
+  while (D.toast_box.children.length > 4) D.toast_box.firstChild.remove();
+}
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function renderMissions() {
+  const box = D.missions_list;
+  box.textContent = '';
+  for (const m of MISSIONS) {
+    const done = S.save.missions_completed.indexOf(m.id) !== -1;
+    const best = S.save.mission_best[m.id] || 0;
+    const prog = Math.min(1, (m.type === 'perfect' ? (best >= m.target ? 1 : 0) : best / m.target));
+    const card = document.createElement('div');
+    card.className = 'card' + (done ? ' done' : '');
+    card.innerHTML = '<div class="cbody"><div class="cname">' + esc(t('m_' + m.type, { n: m.target })) + '</div>' +
+      '<div class="csub">' + t('mission_reward', { n: m.reward }) + (done ? ' · ' + t('mission_completed') : ' · ' + Math.floor(best) + '/' + m.target) + '</div>' +
+      '<div class="pbar"><i style="width:' + Math.round((done ? 1 : prog) * 100) + '%"></i></div></div>';
+    const btn = document.createElement('button');
+    btn.className = 'btn small ' + (done ? 'gray' : 'gold');
+    btn.textContent = done ? '✔' : t('mission_play');
+    if (!done) btn.addEventListener('click', () => { Aud.ui(); startRun('mission', { missionId: m.id }); });
+    card.appendChild(btn);
+    box.appendChild(card);
+  }
+  syncCoinsUI();
+}
+function renderShips() {
+  const grid = D.ships_grid;
+  grid.textContent = '';
+  D.ships_count.textContent = t('ships_title', { n: S.save.ships_unlocked.length });
+  for (const ship of SHIPS) {
+    const avail = isShipAvailable(ship.id);
+    const equipped = S.save.ship_equipped === ship.id && avail;
+    const card = document.createElement('div');
+    card.className = 'shipcard' + (equipped ? ' sel' : '') + (avail ? '' : ' locked');
+    const img = document.createElement('canvas');
+    img.width = 64; img.height = 68; img.className = 'shipimg';
+    const ig = img.getContext('2d');
+    ig.imageSmoothingEnabled = false;
+    const low = LOW.ships[(ship.id - 1) % LOW.ships.length];
+    ig.drawImage(low, 0, 0, low.width, low.height, 0, 0, 64, 68);
+    card.appendChild(img);
+    const body = document.createElement('div'); body.className = 'sbody';
+    const nm = document.createElement('div'); nm.className = 'sn'; nm.textContent = t(ship.nameKey);
+    body.appendChild(nm);
+    const stz = masteryStars(ship.id);
+    const trl = document.createElement('div'); trl.className = 'tr';
+    trl.innerHTML = '<span class="stars">' + '★'.repeat(stz) + '☆'.repeat(3 - stz) + '</span> ' + esc(t('tr_' + (ship.trait || 'stock')));
+    body.appendChild(trl);
+    const sd = document.createElement('div'); sd.className = 'sdesc';
+    sd.textContent = t('ts_' + (ship.trait || 'stock'));
+    body.appendChild(sd);
+    card.appendChild(body);
+    if (!avail) {
+      const cost = document.createElement('div'); cost.className = 'cost';
+      if (ship.adShip) cost.innerHTML = pixIconSVG('od', 10) + ' ' + Math.min(3, S.save.ad_progress[ship.id] || 0) + '/3';
+      else if (ship.votes) cost.innerHTML = pixIconSVG('star', 10) + ' ' + ship.votes;
+      else cost.innerHTML = pixIconSVG('coin', 10) + ' ' + ship.cost;
+      card.appendChild(cost);
+    }
+    card.addEventListener('click', () => { Aud.ui(); openShipDetail(ship.id); });
+    grid.appendChild(card);
+  }
+  showInterstitial();
+  syncCoinsUI();
+}
+function offerRent(ship) {
+  if (S.save.coins >= ship.cost) {
+    S.save.coins -= ship.cost;
+    S.save.ships_unlocked.push(ship.id);
+    S.save.ship_equipped = ship.id;
+    checkAchievements(); saveGame(true); Aud.win();
+    toast(t(ship.nameKey), 'star');
+    renderShips();
+    return;
+  }
+  showRewarded(() => {
+    S.save.ship_rented = { id: ship.id, date: todayKey() };
+    S.save.ship_equipped = ship.id;
+    saveGame(true);
+    toast(t('rented'), 'star');
+    renderShips();
+  });
+}
+function openShipDetail(id) {
+  const ship = shipById(id);
+  S.shipView = id;
+  const avail = isShipAvailable(id);
+  const stars = masteryStars(id);
+  const m = S.save.mastery[id] || { d: 0, c: 0, s: 0 };
+  const g = D.sd_sprite.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  g.clearRect(0, 0, 120, 128);
+  const low = LOW.ships[(id - 1) % LOW.ships.length];
+  g.drawImage(low, 0, 0, low.width, low.height, 8, 4, 104, 112);
+  D.sd_name.textContent = t(ship.nameKey);
+  D.sd_stars.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+  D.sd_trait.textContent = t('trait_label') + ': ' + t('tr_' + (ship.trait || 'stock'));
+  D.sd_desc.textContent = t('tr_' + (ship.trait || 'stock') + 'd');
+  const st = ship.stats;
+  D.sd_stats.innerHTML =
+    '<div class="st"><span>' + esc(t('st_speed')) + '</span><b>×' + st.spd.toFixed(2) + '</b></div>' +
+    '<div class="st"><span>' + esc(t('st_fuel')) + '</span><b>' + (120 + st.fuel) + ' s' + (st.fuel ? ' (+' + st.fuel + ')' : '') + '</b></div>' +
+    '<div class="st"><span>' + esc(t('st_mag')) + '</span><b>×' + st.mag.toFixed(1) + '</b></div>' +
+    '<div class="st"><span>' + esc(t('st_coin')) + '</span><b>×' + st.coin + '</b></div>';
+  const goals = [
+    { txt: t('mast1'), cur: m.d || 0, tgt: 500, done: stars >= 1, fmt: v => Math.min(v, 500) + ' m' },
+    { txt: t('mast2'), cur: m.c || 0, tgt: 150, done: stars >= 2, fmt: v => Math.min(v, 150) + ' 🪙'.replace('🪙', '') },
+    { txt: t('mast3'), cur: m.s || 0, tgt: 2, done: stars >= 3, fmt: v => Math.min(v, 2) + '/2' },
+  ];
+  D.sd_mast.innerHTML = '<div class="mrow"><span style="color:#cfe0ff;font-weight:900">' + esc(t('sd_progress')) + '</span></div>' +
+    goals.map(gl => '<div class="mrow' + (gl.done ? ' done' : '') + '"><span>' + (gl.done ? '✔ ' : '· ') + esc(gl.txt) + '</span><span class="mv">' + gl.fmt(gl.cur) + '</span></div>').join('');
+  const equipped = S.save.ship_equipped === id && avail;
+  D.sd_equip.style.display = avail ? 'block' : 'none';
+  D.sd_equip.textContent = equipped ? t('equipped') : t('equip');
+  D.sd_equip.disabled = equipped;
+  D.sd_equip.className = 'btn ' + (equipped ? 'gray' : 'green');
+  if (ship.adShip) {
+    const n = Math.min(3, S.save.ad_progress[ship.id] || 0);
+    D.sd_ad.style.display = 'block';
+    D.sd_ad.innerHTML = n >= 3 ? t('ad_ship_done', { n: 3 }) : pixIconSVG('od', 14) + ' ' + t('ad_ship_btn', { n: n });
+    D.sd_ad.disabled = false;
+  } else if (ship.votes) {
+    D.sd_ad.style.display = 'block';
+    D.sd_ad.innerHTML = pixIconSVG('star', 14) + ' ' + t('votes_buy', { n: ship.votes });
+    D.sd_ad.disabled = false;
+  } else D.sd_ad.style.display = 'none';
+  D.sd_buy.style.display = (!avail && !ship.adShip && !ship.votes) ? 'block' : 'none';
+  D.sd_buy.innerHTML = pixIconSVG('coin', 12) + ' ' + ship.cost +
+    (ship.ach ? ' · ' + esc(t('locked_ach', { name: t(ship.ach) })) : '') +
+    (ship.reqShips ? ' · ' + S.save.ships_unlocked.length + '/' + ship.reqShips : '');
+  D.scr_ship.classList.add('active');
+}
+function closeShipDetail() {
+  S.shipView = 0;
+  D.scr_ship.classList.remove('active');
+}
+function renderAchs() {
+  const box = D.ach_list;
+  box.textContent = '';
+  D.ach_count.textContent = t('ach_title', { n: S.save.achievements.length });
+  for (const a of ACHS) {
+    const done = S.save.achievements.indexOf(a.id) !== -1;
+    const card = document.createElement('div');
+    card.className = 'card' + (done ? ' done' : '');
+    card.innerHTML = '<div class="cbody"><div class="cname">' + pixIconSVG(done ? 'trophy' : 'lock', 14) + ' ' + esc(t(a.id)) + '</div>' +
+      '<div class="csub">' + esc(t(a.id + 'd')) + ' · ' + t('ach_reward', { n: a.reward }) + '</div></div>' +
+      '<span class="tag' + (done ? '' : ' lock') + '">' + (done ? '✔' : '—') + '</span>';
+    box.appendChild(card);
+  }
+  syncCoinsUI();
+}
+function renderDaily() {
+  const mod = DAILY_MODS[dateSeed(todayKey()) % DAILY_MODS.length];
+  D.daily_mod.innerHTML = pixIconSVG('star', 14) + ' ' + esc(t('daily_mod', { name: t('dm_' + mod) }));
+  D.daily_best.textContent = t('daily_best', { n: (S.save.daily.best_date === todayKey() ? S.save.daily.best : 0) });
+  D.daily_streak.innerHTML = pixIconSVG('flame', 14) + ' ' + esc(t('streak_now', { n: S.save.daily.streak }));
+  D.daily_rewarded.textContent = S.save.daily.rewarded_date === todayKey() ? t('daily_done_today') : t('daily_reward', { n: CFG.DAILY_REWARD });
+  syncCoinsUI();
+}
+function renderSettings() {
+  D.set_sound.textContent = S.save.settings.sound ? t('on') : t('off');
+  D.set_sound.className = 'btn small ' + (S.save.settings.sound ? 'green' : 'gray');
+  D.set_music.textContent = S.save.settings.music ? t('on') : t('off');
+  D.set_music.className = 'btn small ' + (S.save.settings.music ? 'green' : 'gray');
+  D.lang_ru.classList.toggle('sel', getLang() === 'ru');
+  D.lang_en.classList.toggle('sel', getLang() === 'en');
+  D.set_ver.textContent = 'v' + SD.version + ' · ' + (Platform.adapter ? Platform.adapter.name : 'local');
+}
+function applyLang() {
+  for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = t(el.getAttribute('data-i18n'));
+  for (const el of document.querySelectorAll('[data-ic]')) el.innerHTML = pixIconSVG(el.getAttribute('data-ic'), +(el.getAttribute('data-ic-size') || 14));
+  if (D.btn_set && !D.btn_set.dataset.ic) { D.btn_set.innerHTML = pixIconSVG('gear', 18); D.btn_set.dataset.ic = '1'; }
+  document.documentElement.lang = getLang();
+  document.title = t('app_name') + ' — Space Dash';
+  renderBoosters();
+  if (S.screen === 'menu') renderMenu();
+  if (S.screen === 'missions') renderMissions();
+  if (S.screen === 'ships') renderShips();
+  if (S.shipView && D.scr_ship.classList.contains('active')) openShipDetail(S.shipView);
+  if (S.screen === 'ach') renderAchs();
+  if (S.screen === 'daily') renderDaily();
+  if (S.screen === 'set') renderSettings();
+  if (S.screen === 'gameover' && S.run) {
+    D.btn_cont_ad.textContent = t('continue_ad');
+    D.btn_double.textContent = t('double_ad') + ' (+' + S.run.coins + ')';
+  }
+}
+function switchLang(l) {
+  setLang(l);
+  S.save.settings.lang = l;
+  SD.events.langSwitch++;
+  applyLang();
+  saveGame(true);
+}
+function showTutorial() {
+  D.tut.classList.add('active');
+  D.tut_text.textContent = t('tut' + S.tut.step);
+  D.tut_hand.style.display = S.tut.step === 1 ? 'block' : 'none';
+  if (S.tut.step === 1) D.tut_hand.innerHTML = pixMapSVG(SPR.px_arrow, 120, { K: '#9ef0ff' });
+}
+function tutStep(n) { S.tut.step = n; showTutorial(); Aud.ui(); }
+function tutDone() {
+  S.tut.active = false;
+  S.save.tutorial_done = true;
+  D.tut.classList.remove('active');
+  toast(t('tut_done'), 'star');
+  saveGame(true);
+}
+
+/* ================= UI EVENTS ================= */
+function bindUI() {
+  const click = (el, fn) => el && el.addEventListener('click', ev => { ev.stopPropagation(); Aud.ensure(); Aud.resume(); Aud.ui(); fn(); });
+  click(D.btn_play, () => startRun('endless'));
+  click(D.btn_missions, () => showScreen('missions'));
+  click(D.btn_daily, () => showScreen('daily'));
+  click(D.btn_ships, () => showScreen('ships'));
+  click(D.btn_ach, () => showScreen('ach'));
+  click(D.btn_set, () => showScreen('set'));
+  for (const el of document.querySelectorAll('[data-back]')) click(el, () => showScreen(el.getAttribute('data-back')));
+  click(D.btn_daily_play, () => startRun('daily'));
+  click(D.bst_shield_buy, () => buyBooster('shield'));
+  click(D.bst_magnet_buy, () => buyBooster('magnet'));
+  click(D.bst_shield_ad, () => adBooster('shield'));
+  click(D.bst_magnet_ad, () => adBooster('magnet'));
+  click(D.btn_pause, () => doPause('manual'));
+  click(D.btn_resume, () => doResume());
+  click(D.btn_restart, () => {
+    const m = S.run ? S.run.mode : 'endless', mid = S.run ? S.run.missionId : null;
+    showScreen('hud');
+    startRun(m, { missionId: mid, skipTut: true });
+  });
+  click(D.btn_pmenu, () => {
+    const played = S.playedMs;
+    try { Platform.adapter.gameplayStop(); } catch (e) {}
+    Aud.engineStop();
+    showScreen('menu');
+    if (played > CFG.AD_MENU_PLAYED) showInterstitial();
+  });
+  click(D.btn_cont_ad, () => showRewarded(() => continueRun()));
+  click(D.btn_cont_coins, () => {
+    if (S.save.coins >= CFG.CONTINUE_COST) { S.save.coins -= CFG.CONTINUE_COST; saveGame(true); continueRun(); }
+    else toast(t('not_enough_coins'));
+  });
+  click(D.btn_double, () => {
+    const r = S.run;
+    if (!r || r.doubled) return;
+    showRewarded(() => {
+      r.doubled = true;
+      S.save.coins += r.coins;
+      saveGame(true);
+      D.btn_double.style.display = 'none';
+      D.over_coins.textContent = r.coins * 2;
+      syncCoinsUI();
+      toast('🪙 +' + r.coins);
+    });
+  });
+  click(D.btn_retry, () => {
+    const m = S.run ? S.run.mode : 'endless', mid = S.run ? S.run.missionId : null;
+    showInterstitial(() => startRun(m, { missionId: mid, skipTut: true }));
+  });
+  click(D.btn_over_menu, () => {
+    const played = S.playedMs;
+    S.playedMs = 0;
+    showScreen('menu');
+    if (played > CFG.AD_MENU_PLAYED) showInterstitial();
+  });
+  click(D.set_sound, () => { S.save.settings.sound = !S.save.settings.sound; renderSettings(); saveGame(true); if (S.save.settings.sound) { Aud.ensure(); Aud.resume(); } });
+  click(D.set_music, () => { S.save.settings.music = !S.save.settings.music; renderSettings(); saveGame(true); });
+  click(D.lang_ru, () => switchLang('ru'));
+  click(D.lang_en, () => switchLang('en'));
+  D.quests_box && D.quests_box.addEventListener('click', ev => {
+    const qi = ev.target && ev.target.getAttribute && ev.target.getAttribute('data-qi');
+    if (qi !== null && qi !== undefined && qi !== '') {
+      const q = S.save.quests.list[+qi];
+      if (q && !q.claimed && q.prog >= q.target) {
+        q.claimed = true;
+        S.save.coins += q.reward;
+        Aud.win();
+        toast('+' + q.reward, 'coin');
+        if (S.save.quests.list.every(x => x.claimed)) questStreakBump();
+        saveGame(true);
+        renderQuests();
+        syncCoinsUI();
+      }
+      return;
+    }
+    if (ev.target && ev.target.id === 'chest-btn') {
+      const ch = chestNext();
+      if (!ch) return;
+      showRewarded(() => {
+        S.save.questStreak.chests.push(ch);
+        S.save.coins += CFG.CHEST_REWARD[ch];
+        Aud.win();
+        toast(t('chest_reward', { n: CFG.CHEST_REWARD[ch] }), 'chest');
+        saveGame(true);
+        renderQuests();
+        syncCoinsUI();
+      });
+    }
+  });
+  click(D.sd_back, () => closeShipDetail());
+  click(D.sd_ad, () => {
+    const ship = shipById(S.shipView);
+    if (!ship || isShipAvailable(ship.id)) return;
+    if (ship.adShip) {
+      showRewarded(() => {
+        const n = (S.save.ad_progress[ship.id] || 0) + 1;
+        S.save.ad_progress[ship.id] = n;
+        if (n >= 3) {
+          S.save.ships_unlocked.push(ship.id);
+          checkAchievements();
+          Aud.win();
+          toast(t(ship.nameKey) + '!', 'star');
+        } else {
+          toast(t('ad_ship_btn', { n }), 'od');
+        }
+        saveGame(true);
+        openShipDetail(ship.id);
+        renderShips();
+        syncCoinsUI();
+      });
+    } else if (ship.votes) {
+      const a = Platform.adapter;
+      if (!a || a.name !== 'vk' || typeof a.purchase !== 'function') { toast(t('votes_only'), 'lock'); return; }
+      a.purchase('ship_' + ship.id).then(ok => {
+        if (ok) {
+          S.save.ships_unlocked.push(ship.id);
+          S.save.ship_equipped = ship.id;
+          checkAchievements(); saveGame(true); Aud.win();
+          toast(t(ship.nameKey) + '!', 'star');
+          closeShipDetail(); renderShips();
+        } else toast(t('votes_cancel'), 'lock');
+      });
+    }
+  });
+  click(D.sd_equip, () => {
+    const id = S.shipView;
+    if (!id || !isShipAvailable(id)) return;
+    S.save.ship_equipped = id;
+    saveGame(true);
+    closeShipDetail();
+    renderShips();
+  });
+  click(D.sd_buy, () => {
+    const ship = shipById(S.shipView);
+    if (!ship || isShipAvailable(ship.id)) return;
+    if (ship.reqShips && S.save.ships_unlocked.length < ship.reqShips) { toast(S.save.ships_unlocked.length + '/' + ship.reqShips, 'lock'); return; }
+    if (ship.ach && S.save.achievements.indexOf(ship.ach) === -1) { toast(t('locked_ach', { name: t(ship.ach) }), 'lock'); return; }
+    if (ship.id >= 31) { offerRent(ship); closeShipDetail(); return; }
+    if (S.save.coins >= ship.cost) {
+      S.save.coins -= ship.cost;
+      S.save.ships_unlocked.push(ship.id);
+      S.save.ship_equipped = ship.id;
+      checkAchievements(); saveGame(true); Aud.win();
+      toast(t(ship.nameKey), 'star');
+      closeShipDetail();
+      renderShips();
+    } else toast(t('not_enough_coins'));
+  });
+  click(D.btn_tut_skip, () => {
+    S.tut.active = false;
+    S.save.tutorial_done = true;
+    D.tut.classList.remove('active');
+    saveGame(true);
+  });
+}
+function buyBooster(kind) {
+  if (S.boost[kind]) { S.boost[kind] = false; renderBoosters(); return; }
+  if (S.save.coins >= CFG.BOOSTER_COST) { S.save.coins -= CFG.BOOSTER_COST; S.boost[kind] = true; saveGame(true); }
+  else toast(t('not_enough_coins'));
+  renderBoosters(); syncCoinsUI();
+}
+function adBooster(kind) {
+  if (S.boost[kind]) return;
+  showRewarded(() => { S.boost[kind] = true; renderBoosters(); toast(t('booster_' + kind), 'star'); });
+}
+
+/* ================= BOOT ================= */
+function bindPlatformEvents(a) {
+  a.on('pause', () => doPause('external'));
+  a.on('resume', () => { if (S.pauseSource === 'external') doResume(); else Aud.resume(); });
+  a.on('mute', () => { Aud.gpMute = true; Aud.engineSet(0, false); });
+  a.on('unmute', () => { Aud.gpMute = false; });
+  a.on('mute:music', () => { Aud.gpMusicMute = true; });
+  a.on('unmute:music', () => { Aud.gpMusicMute = false; });
+}
+async function boot() {
+  cacheDom();
+  buildSprites();
+  layout();
+  S.save = loadLocal();
+  bindInput();
+  bindUI();
+  const a = await Platform.init();
+  S.adapter = a;
+  bindPlatformEvents(a);
+  try {
+    const cloud = await Promise.race([
+      a.load ? a.load() : Promise.resolve(null),
+      new Promise(res => setTimeout(() => res(null), 3500)),
+    ]);
+    if (cloud && typeof cloud === 'object') {
+      S.save = mergeSave(cloud, S.save);
+      saveLocal();
+      if (a.name === 'gamepush') toast(t('cloud_sync'), 'star');
+    }
+  } catch (e) { /* local-only */ }
+  window.addEventListener('gp-ready', () => {
+    if (Platform.adapter === GamePushAdapter) return;
+    GamePushAdapter.init().then(() => {
+      Platform.adapter = GamePushAdapter;
+      S.adapter = GamePushAdapter;
+      bindPlatformEvents(GamePushAdapter);
+      try { GamePushAdapter.ready(); } catch (e) {}
+    }).catch(() => {});
+  });
+  // return capsule
+  try {
+    const tk = todayKey();
+    if (S.save.lastSeen && S.save.lastSeen !== tk && S.save.lastSeen !== yesterdayKey()) {
+      S.save.coins += 100;
+      setTimeout(() => toast(t('capsule', { n: 100 }), 'chest'), 800);
+    }
+    S.save.lastSeen = tk;
+    saveGame(false);
+  } catch (e) {}
+  const pl = (a.getLang && a.getLang()) || 'en';
+  setLang(S.save.settings.lang || pl);
+  applyLang();
+  syncCoinsUI();
+  try { a.ready(); } catch (e) {}
+  if (a === GamePushAdapter) { Aud.gpMute = a.isSoundMuted(); Aud.gpMusicMute = a.isMusicMuted(); }
+  D.loading.style.opacity = '0';
+  setTimeout(() => { D.loading.style.display = 'none'; }, 420);
+  showScreen('menu');
+  Aud.musicStart();
+  requestAnimationFrame(frame);
+  SD.booted = true;
+  window.__SD.booted = true;
+}
+
+/* ================= QA HOOKS ================= */
+window.__SD = {
+  version: SD.version,
+  booted: false,
+  SD, CFG, S,
+  getState() {
+    const r = S.run;
+    return {
+      screen: S.screen, lang: getLang(), adapter: Platform.adapter ? Platform.adapter.name : 'none',
+      lane: r ? r.lane : -1, shipX: r ? r.shipX : -1, speed: r ? r.speed : 0,
+      dist: r ? r.dist_m : 0, coins: r ? r.coins : 0, fuel: r ? r.fuel : 0,
+      ents: r ? r.entities.length : 0, fps: SD.perf.fps,
+      shield: r ? r.shield : false, magnetT: r ? r.magnetT : 0, doubleT: r ? r.doubleT : 0,
+      dodges: r ? r.dodges : 0, hits: r ? r.hitsTaken : 0, over: r ? r.over : true,
+      combo: r ? r.combo : 0, storm: r ? r.storm : 0,
+      trait: r ? r.trait : '', bombs: r ? r.bombs : 0, od: r ? Object.assign({}, r.od) : null,
+      slowT: r ? r.slowT : 0, phaseT: r ? r.phaseT : 0, bonusT: r ? r.bonusT : 0,
+      stars: r ? r.stars : 0,
+      quests: S.save && S.save.quests ? S.save.quests.list.map(q => Object.assign({}, q)) : [],
+      questStreak: S.save ? Object.assign({}, S.save.questStreak) : null,
+      weekly: S.save ? (S.save.weekly || []).slice(0, 5) : [],
+      adProgress: S.save ? Object.assign({}, S.save.ad_progress) : {},
+      saveCoins: S.save ? S.save.coins : 0,
+      unlocked: S.save ? S.save.ships_unlocked.length : 0,
+      missions: S.save ? S.save.missions_completed.length : 0,
+      achievements: S.save ? S.save.achievements.length : 0,
+      rowsTotal: S.run ? S.run.gen.rowCount : 0,
+      perf: Object.assign({}, SD.perf), events: Object.assign({}, SD.events), errors: SD.errors.slice(),
+      input: Object.assign({}, SD.input),
+      boost: Object.assign({}, S.boost),
+      particles: P.length,
+    };
+  },
+  rows(n) { const r = S.run; if (!r) return []; return r.gen.rows.slice(-(n || 100)); },
+  startRun(mode, opts) { startRun(mode || 'endless', opts || {}); },
+  endRun(reason) { endRun(reason || 'crash'); },
+  continueRun,
+  moveLane(dir) { return moveLane(dir); },
+  bot(on) { S.bot = !!on; },
+  god(on) { S.god = !!on; },
+  setLang(l) { switchLang(l); },
+  toast,
+  save: () => S.save,
+  setSave(o) { S.save = sanitizeSave(o); saveGame(true); },
+  tutSkip() { S.save.tutorial_done = true; S.tut.active = false; D.tut.classList.remove('active'); },
+  showScreen,
+  addEnt(type, lane, dy) {
+    const r = S.run; if (!r) return false;
+    const shipY = L.fieldHcells - CFG.SHIP_Y;
+    const dist = r.travelled + shipY - (dy === undefined ? 4 : dy);
+    if (type === 'coin') r.entities.push({ kind: 'coin', type: 'coin', x: lane, lane, dist, taken: false, ph: 0 });
+    else if (type === 'fuel' || type === 'shield' || type === 'magnet' || type === 'double')
+      r.entities.push({ kind: 'item', type, x: lane, lane, dist, taken: false, ph: 0 });
+    else r.entities.push({ kind: 'obs', type, x: lane, lane, dist, drift: 0, age: 0, rot: 0, vr: 0, astI: 0, passed: false, hitDone: false, ph: 0 });
+    return true;
+  },
+  setFuel(v) { if (S.run) S.run.fuel = v; },
+  setFuelDrain(v) { if (S.run) S.run.fuelDrain = v; },
+  grantAll() {
+    S.save.coins += 100000;
+    for (const s of SHIPS) if (S.save.ships_unlocked.indexOf(s.id) === -1) S.save.ships_unlocked.push(s.id);
+    saveGame(true);
+  },
+  dailyKey: todayKey,
+  layoutInfo: () => ({ cell: L.cell, fieldX: L.fieldX, fieldW: L.fieldW, fieldHcells: L.fieldHcells, cw: L.cw, ch: L.ch }),
+  audioState: () => ({ ctx: Aud.ctx ? Aud.ctx.state : 'none', muted: Aud.gpMute, engine: !!Aud.eng, music: !!Aud.musicTimer }),
+  interstitialReset() { S.lastInter = 0; S.sessionStart = 0; },
+  /* promo scene rendered from the game's own pixel assets (store icon / cover) */
+  artExport(kind) {
+    const W = kind === 'icon' ? 1024 : 1920, H = kind === 'icon' ? 1024 : 1080;
+    const c = mc(W, H), g = c.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const bands = ['#0b0f22', '#0d1226', '#10152b', '#131831', '#161b37'];
+    const bh = H / bands.length;
+    bands.forEach((col, i) => { g.fillStyle = col; g.fillRect(0, Math.floor(i * bh), W, Math.ceil(bh) + 3); });
+    const rnd = mulberry32(777);
+    for (let i = 0; i < 260; i++) {
+      g.fillStyle = i % 3 ? '#8fa3d9' : '#e8f2ff';
+      const sz = i % 13 === 0 ? 3 : 2;
+      g.fillRect(Math.floor(rnd() * W), Math.floor(rnd() * H), sz, sz);
+    }
+    const pr = kind === 'icon' ? 300 : 240;
+    const px = kind === 'icon' ? 210 : 1560, py = kind === 'icon' ? 780 : 330;
+    g.fillStyle = '#2c2450'; g.beginPath(); g.arc(px, py, pr, 0, 7); g.fill();
+    g.fillStyle = '#241d40';
+    for (let y = -pr; y < pr; y += 4) for (let x = 0; x < pr; x += 4) g.fillRect(px + x + (y % 8 === 0 ? 2 : 0), py + y, 2, 2);
+    g.fillStyle = '#5b4a86';
+    for (let a = 0; a < 6.28; a += 0.01) {
+      const rx = Math.cos(a) * pr * 1.5, ry = Math.sin(a) * pr * 0.38;
+      g.fillRect(Math.floor(px + rx * Math.cos(-0.18) - ry * Math.sin(-0.18)), Math.floor(py + rx * Math.sin(-0.18) + ry * Math.cos(-0.18)), 3, 3);
+    }
+    const sc = kind === 'icon' ? 26 : 17;
+    const draw = (low, x, y, s2) => g.drawImage(low, 0, 0, low.width, low.height, Math.round(x), Math.round(y), Math.round(low.width * s2), Math.round(low.height * s2));
+    draw(LOW.ast[0], W * 0.10, H * 0.13, sc * 0.62);
+    draw(LOW.ast[1], W * 0.74, H * 0.64, sc * 0.7);
+    draw(LOW.ast[2], W * 0.78, H * 0.10, sc * 0.45);
+    draw(LOW.coin[0], W * 0.18, H * 0.70, sc * 0.5);
+    draw(LOW.coin[1], W * 0.26, H * 0.58, sc * 0.4);
+    draw(LOW.coin[2], W * 0.84, H * 0.36, sc * 0.42);
+    draw(LOW.ships[2], W * 0.10, H * 0.42, sc * 0.4);
+    draw(LOW.ships[7], W * 0.85, H * 0.50, sc * 0.4);
+    draw(LOW.ships[0], W * 0.5 - 7 * sc, H * 0.46 - 8 * sc, sc);
+    return c.toDataURL('image/png');
+  },
+};
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+else boot();
+
+})();
+
+</script>
+</body>
+</html>
