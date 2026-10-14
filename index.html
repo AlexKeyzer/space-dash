@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -28,6 +29,23 @@
     padding:calc(12px + env(safe-area-inset-top)) 14px calc(12px + env(safe-area-inset-bottom)); overflow:hidden; }
   #scr-menu { overflow-y:auto; touch-action:pan-y; scrollbar-width:none; }
   #scr-menu::-webkit-scrollbar { display:none; }
+  #scr-menu.fit-scaled { overflow:hidden; }
+  #scr-menu .panel { transform-origin:top center; transition:transform .15s ease; }
+  /* compact base metrics so the menu fits even before scaling */
+  #scr-menu .panel { gap:9px; }
+  #scr-menu .title { margin:2px 0 0; font-size:clamp(22px,5.8vw,38px); }
+  #scr-menu .boost-row { gap:7px; }
+  #scr-menu .qcard { padding:7px 9px; }
+  #scr-menu .qrow { padding:2px 0; font-size:11px; }
+  @media (max-height:760px) {
+    #scr-menu .panel { gap:7px; }
+    #scr-menu .btn { padding:10px 14px; font-size:14px; }
+    #scr-menu .qcard { display:none; }          /* квесты дублируются в челлендже дня и миссиях */
+  }
+  @media (max-height:600px) {
+    #scr-menu .boost-row { display:none; }
+    #scr-menu .subtitle { display:none; }
+  }
   .screen.active { display:flex; }
   .panel { width:100%; max-width:440px; display:flex; flex-direction:column; align-items:center; gap:12px; }
   #scr-menu .panel { margin:auto 0; }
@@ -1899,6 +1917,8 @@ const LocalAdapter = {
   },
   _emit(ev, arg) { (this._cbs[ev] || []).slice().forEach(cb => { try { cb(arg); } catch (e) {} }); },
   interstitial(cbOk, cbErr) { setTimeout(() => cbOk && cbOk(), 30); },
+  showBanner() { return Promise.resolve(false); },
+  hideBanner() { return Promise.resolve(false); },
   rewarded(cbReward, cbClose, cbErr) {
     setTimeout(() => { cbReward && cbReward(); cbClose && cbClose(true); }, 30);
   },
@@ -1981,6 +2001,18 @@ const GamePushAdapter = {
   },
   _emit(ev, arg) { (this._cbs[ev] || []).slice().forEach(cb => { try { cb(arg); } catch (e) {} }); },
 
+  showBanner() {
+    const gp = this._g();
+    return this._safe(() => (gp && gp.ads && gp.ads.showSticky)
+      ? Promise.resolve(gp.ads.showSticky()).then(() => true, () => false)
+      : Promise.resolve(false)) || Promise.resolve(false);
+  },
+  hideBanner() {
+    const gp = this._g();
+    return this._safe(() => (gp && gp.ads && gp.ads.closeSticky)
+      ? Promise.resolve(gp.ads.closeSticky()).then(() => true, () => false)
+      : Promise.resolve(false)) || Promise.resolve(false);
+  },
   interstitial(cbOk, cbErr) {
     const gp = this._g();
     let settled = false;
@@ -2139,6 +2171,7 @@ const VKAdapter = {
       this._b.subscribe((e) => {
         if (!e || !e.type) return;
         if (e.type === 'VKWebAppViewHide') this._emit('pause');
+        if (e.type === 'VKWebAppBannerAdClosedByUser') this._bannerClosed = true;
         if (e.type === 'VKWebAppViewRestore') this._emit('resume');
       });
     } catch (e) {}
@@ -2155,6 +2188,17 @@ const VKAdapter = {
   off(ev, cb) { const a = this._cbs[ev]; if (!a) return; const i = a.indexOf(cb); if (i >= 0) a.splice(i, 1); },
   _emit(ev, arg) { (this._cbs[ev] || []).slice().forEach(cb => { try { cb(arg); } catch (e) {} }); },
 
+  showBanner() {
+    return this._send('VKWebAppShowBannerAd', {
+      banner_location: 'top',
+      layout_type: 'resize',
+      orientation: 'horizontal',
+      height_type: 'compact',
+    }).then(() => true, () => false);
+  },
+  hideBanner() {
+    return this._send('VKWebAppHideBannerAd').then(() => true, () => false);
+  },
   interstitial(cbOk, cbErr) {
     let settled = false;
     const ok = () => { if (!settled) { settled = true; cbOk && cbOk(); } };
@@ -2720,6 +2764,10 @@ function startRun(mode, opts) {
   else { S.tut.active = false; D.tut.classList.remove('active'); }
   showScreen('hud');
   Aud.engineStart(); Aud.musicStart();
+  try {
+    const a = Platform.adapter;
+    if (a.name === 'vk' && a._bannerClosed) { a._bannerClosed = false; a.showBanner(); }
+  } catch (e) {}
   try { Platform.adapter.gameplayStart(); } catch (e) {}
   SD.events.runs++;
 }
@@ -3318,7 +3366,7 @@ function bindInput() {
   }, { passive: false });
   document.addEventListener('gesturestart', ev => ev.preventDefault());
   document.addEventListener('dblclick', ev => ev.preventDefault());
-  window.addEventListener('resize', layout);
+  window.addEventListener('resize', () => { layout(); if (S.screen === 'menu') fitMenu(); });
   window.addEventListener('orientationchange', () => setTimeout(layout, 120));
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) doPause('external');
@@ -3640,12 +3688,29 @@ function showScreen(name) {
   else if (name === 'over') D.scr_over.classList.add('active');
   else { const el = D['scr_' + name]; if (el) el.classList.add('active'); }
   S.screen = name === 'hud' ? 'playing' : (name === 'pause' ? 'paused' : (name === 'over' ? 'gameover' : name));
-  if (name === 'menu') { S.run = null; syncCoinsUI(); renderMenu(); }
+  if (name === 'menu') { S.run = null; syncCoinsUI(); renderMenu(); fitMenu(); }
   if (name === 'missions') renderMissions();
   if (name === 'ships') renderShips();
   if (name === 'ach') renderAchs();
   if (name === 'daily') renderDaily();
   if (name === 'set') renderSettings();
+}
+function fitMenu() {
+  const scr = D.scr_menu;
+  if (!scr) return;
+  const panel = scr.querySelector('.panel');
+  if (!panel) return;
+  panel.style.transform = '';
+  scr.classList.remove('fit-scaled');
+  requestAnimationFrame(() => {
+    const avail = scr.clientHeight - 8;
+    const need = panel.scrollHeight;
+    if (need > avail && avail > 0) {
+      const k = Math.max(0.55, avail / need);
+      panel.style.transform = 'scale(' + k.toFixed(3) + ')';
+      scr.classList.add('fit-scaled');
+    }
+  });
 }
 function syncCoinsUI() {
   for (const el of document.querySelectorAll('.coins-pill .ic')) el.innerHTML = pixIconSVG('coin', 16);
@@ -4136,6 +4201,7 @@ async function boot() {
   applyLang();
   syncCoinsUI();
   try { a.ready(); } catch (e) {}
+  try { if (a.showBanner) a.showBanner(); } catch (e) {}
   if (a === GamePushAdapter) { Aud.gpMute = a.isSoundMuted(); Aud.gpMusicMute = a.isMusicMuted(); }
   D.loading.style.opacity = '0';
   setTimeout(() => { D.loading.style.display = 'none'; }, 420);
