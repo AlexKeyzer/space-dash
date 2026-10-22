@@ -469,7 +469,8 @@ const I18N = {
     continue_coins: 'Продолжить за {n} монет', double_ad: '▶ Монеты ×2',
     retry: 'ЕЩЁ РАЗ', menu: 'МЕНЮ', mission_done: 'МИССИЯ ВЫПОЛНЕНА! +{n} монет',
     mission_fail: 'Миссия не выполнена', ach_done: 'Достижение: {name}! +{n} монет',
-    ad_unavailable: 'Реклама недоступна — награда выдана так!',
+    ad_unavailable: 'Реклама не показалась — награда не выдана',
+    ad_unsupported: 'Rewarded-реклама доступна в мобильном приложении VK',
     daily_reward: 'Награда дня: +{n} монет', streak_now: 'Серия: {n} дн.',
     tut_skip: 'Пропустить ▶',
     tut1: 'Свайпай влево/вправо (или стрелки), чтобы менять полосу',
@@ -617,7 +618,8 @@ const I18N = {
     continue_coins: 'Continue for {n} coins', double_ad: '▶ Double coins',
     retry: 'PLAY AGAIN', menu: 'MENU', mission_done: 'MISSION COMPLETE! +{n} coins',
     mission_fail: 'Mission failed', ach_done: 'Achievement: {name}! +{n} coins',
-    ad_unavailable: 'Ad unavailable — reward granted anyway!',
+    ad_unavailable: 'Ad did not play — no reward granted',
+    ad_unsupported: 'Rewarded ads are available in the VK mobile app',
     daily_reward: 'Daily reward: +{n} coins', streak_now: 'Streak: {n} days',
     tut_skip: 'Skip ▶',
     tut1: 'Swipe left/right (or arrow keys) to change lane',
@@ -1916,7 +1918,8 @@ const LocalAdapter = {
   showBanner() { return Promise.resolve(false); },
   hideBanner() { return Promise.resolve(false); },
   rewarded(cbReward, cbClose, cbErr) {
-    setTimeout(() => { cbReward && cbReward(); cbClose && cbClose(true); }, 30);
+    // вне платформ рекламы нет: награда НЕ выдаётся, прогресс не блокируется
+    setTimeout(() => { cbErr && cbErr(); cbClose && cbClose(false); }, 30);
   },
   save(data) {
     try { this._store && this._store.setItem('sd_cloud_mock', JSON.stringify(data)); } catch (e) {}
@@ -2031,7 +2034,7 @@ const GamePushAdapter = {
       if (!rewarded && !success) { cbErr && cbErr(); }
       cbClose && cbClose(!!success || rewarded);
     };
-    if (!gp || !gp.ads || typeof gp.ads.showRewardedVideo !== 'function') {
+    if (!gp || !gp.ads || typeof gp.ads.showRewardedVideo !== 'function' || gp.ads.isRewardedAvailable === false) {
       cbErr && cbErr(); cbClose && cbClose(false); return;
     }
     this._safe(() => gp.ads.on('rewarded:reward', giveReward));
@@ -2199,17 +2202,24 @@ const VKAdapter = {
     let settled = false;
     const ok = () => { if (!settled) { settled = true; cbOk && cbOk(); } };
     const err = () => { if (!settled) { settled = true; cbErr ? cbErr() : ok(); } };
-    this._send('VKWebAppShowNativeAds', { ad_format: 'interstitial' }).then(ok, err);
+    this._send('VKWebAppCheckNativeAds', { ad_format: 'interstitial' }).then(chk => {
+      if (!chk || chk.result !== true) { err(); return; }   // нет рекламы — просто продолжаем без неё
+      this._send('VKWebAppShowNativeAds', { ad_format: 'interstitial' }).then(ok, err);
+    }, err);
     setTimeout(ok, 60000);
   },
   rewarded(cbReward, cbClose, cbErr) {
     let granted = false, settled = false;
     const give = () => { if (!granted) { granted = true; cbReward && cbReward(); } };
     const close = (s) => { if (!settled) { settled = true; cbClose && cbClose(s); } };
-    this._send('VKWebAppShowNativeAds', { ad_format: 'reward' })
-      .then(() => { give(); close(true); },
-            () => { cbErr && cbErr(); close(false); });
-    setTimeout(() => { if (!settled) { close(granted); } }, 120000);
+    const fail = () => { cbErr && cbErr(); close(false); };
+    // сначала проверяем доступность рекламы на этом устройстве/платформе
+    this._send('VKWebAppCheckNativeAds', { ad_format: 'reward' }).then(chk => {
+      if (!chk || chk.result !== true) { this._adsNote = 'unsupported'; fail(); return; }
+      this._send('VKWebAppShowNativeAds', { ad_format: 'reward' })
+        .then(() => { give(); close(true); }, fail);
+    }, fail);
+    setTimeout(() => { if (!settled) close(granted); }, 120000);
   },
   save(data) {
     return this._send('VKWebAppStorageSet', { key: 'sd_save_v1', value: JSON.stringify(data) })
@@ -3081,7 +3091,7 @@ function updateRun(dt) {
   const g0 = performance.now();
   const rows = r.bonusT > 0 ? [] : r.gen.update(r.travelled, r.t, r.speed, L.fieldHcells + 8, r.storm === 1, r.genDensity);
   const gms = performance.now() - g0;
-  if (gms > SD.perf.genMaxMs) SD.perf.genMaxMs = gms;
+  if (SD.perf.frames > 180 && gms > SD.perf.genMaxMs) SD.perf.genMaxMs = gms;  // steady-state
   for (const row of rows) spawnFromRow(row);
 
   const shipY = L.fieldHcells - CFG.SHIP_Y;
@@ -3403,9 +3413,13 @@ function showRewarded(onReward) {
   SD.events.rewarded++;
   let granted = false;
   const grant = () => { if (!granted) { granted = true; onReward(); } };
+  const deny = () => {
+    const a = Platform.adapter;
+    toast(t(a && a._adsNote === 'unsupported' ? 'ad_unsupported' : 'ad_unavailable'), 'lock');
+  };
   try {
-    Platform.adapter.rewarded(grant, () => {}, () => { toast(t('ad_unavailable')); grant(); });
-  } catch (e) { grant(); }
+    Platform.adapter.rewarded(grant, () => {}, deny);
+  } catch (e) { deny(); }
 }
 
 /* ================= RENDER ================= */
