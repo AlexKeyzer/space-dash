@@ -522,9 +522,7 @@ const I18N = {
     ts_collector: 'Комбо-бонус каждые 5 звеньев',
     ts_emperor: 'Старт каждого забега: щит + магнит', ts_void: 'Фаза 2 с каждые 10 с + магнит 2.0',
     ts_reaper: 'Близко! +10, овердрайв без перегрева',
-    ad_ship_btn: 'Смотреть рекламу ({n}/3)', ad_ship_done: 'Реклама просмотрена (3/3)',
-    votes_buy: 'Купить за {n} голосов', votes_only: 'Покупка за голоса доступна только в VK',
-    votes_cancel: 'Покупка отменена',
+    ad_ship_btn: 'Смотреть рекламу ({n}/{m})', ad_ship_done: 'Реклама просмотрена ({n}/{m})',
     sd_equipped: 'Выбран', sd_back: 'Назад', sd_progress: 'Прогресс мастерства',
     mast1: '500 м этим кораблём', mast2: '150 монет за забег', mast3: 'Пережить 2 шторма',
     // v4: quests / chest / capsule / weekly / skills
@@ -671,9 +669,7 @@ const I18N = {
     ts_collector: 'Combo bonus every 5 links',
     ts_emperor: 'Every run starts with shield + magnet', ts_void: 'Phase 2 s / 10 s + magnet 2.0',
     ts_reaper: 'Near-miss +10, overdrive without overheat',
-    ad_ship_btn: 'Watch ad ({n}/3)', ad_ship_done: 'Ads completed (3/3)',
-    votes_buy: 'Buy for {n} votes', votes_only: 'Votes purchase is available in VK only',
-    votes_cancel: 'Purchase cancelled',
+    ad_ship_btn: 'Watch ad ({n}/{m})', ad_ship_done: 'Ads completed ({n}/{m})',
     sd_equipped: 'Equipped', sd_back: 'Back', sd_progress: 'Mastery progress',
     mast1: 'Fly 500 m with this ship', mast2: '150 coins in one run', mast3: 'Survive 2 storms',
     quests_title: 'Daily quests', quest_claim: 'Claim', quest_done: 'Done',
@@ -815,14 +811,14 @@ const SHIPS = [
   { id: 39, trait: 'escort', tpl: 12, color: '#ab47bc', color2: '#f3e5f5', cost: 2400, ach: 'a_d10000',stats: { spd: 1.10, fuel: 30, mag: 2.0, coin: 3 } },
   { id: 40, trait: 'chrono', tpl: 11, color: '#ffffff', color2: '#ffd54f', cost: 2500, reqShips: 39, stats: { spd: 1.15, fuel: 40, mag: 2.0, coin: 5 } },
   // 41-44: рекламные корабли (3 rewarded-просмотра, личный счётчик)
-  { id: 41, tpl: 9,  color: '#66d9ff', color2: '#e3f9ff', cost: 0, trait: 'scout',  adShip: true, stats: { spd: 1.05, fuel: 10, mag: 1.4, coin: 2 } },
-  { id: 42, tpl: 8,  color: '#d9a441', color2: '#ffe9c2', cost: 0, trait: 'tanker', adShip: true, stats: { spd: 0.98, fuel: 30, mag: 1.2, coin: 2 } },
-  { id: 43, tpl: 7,  color: '#ff66cc', color2: '#ffe1f4', cost: 0, trait: 'lucky',  adShip: true, stats: { spd: 1.09, fuel: 10, mag: 1.5, coin: 2 } },
-  { id: 44, tpl: 6,  color: '#66ff99', color2: '#dcffe9', cost: 0, trait: 'repair', adShip: true, stats: { spd: 1.02, fuel: 20, mag: 1.4, coin: 2 } },
+  { id: 41, adNeed: 3, tpl: 9,  color: '#66d9ff', color2: '#e3f9ff', cost: 0, trait: 'scout',  adShip: true, stats: { spd: 1.05, fuel: 10, mag: 1.4, coin: 2 } },
+  { id: 42, adNeed: 3, tpl: 8,  color: '#d9a441', color2: '#ffe9c2', cost: 0, trait: 'tanker', adShip: true, stats: { spd: 0.98, fuel: 30, mag: 1.2, coin: 2 } },
+  { id: 43, adNeed: 3, tpl: 7,  color: '#ff66cc', color2: '#ffe1f4', cost: 0, trait: 'lucky',  adShip: true, stats: { spd: 1.09, fuel: 10, mag: 1.5, coin: 2 } },
+  { id: 44, adNeed: 3, tpl: 6,  color: '#66ff99', color2: '#dcffe9', cost: 0, trait: 'repair', adShip: true, stats: { spd: 1.02, fuel: 20, mag: 1.4, coin: 2 } },
   // 45-47: премиум за голоса VK (10 / 15 / 25)
-  { id: 45, tpl: 11, color: '#ffd700', color2: '#fff8dc', cost: 0, trait: 'emperor', votes: 10, stats: { spd: 1.10, fuel: 30, mag: 1.8, coin: 3 } },
-  { id: 46, tpl: 14, color: '#6b5bff', color2: '#d9d4ff', cost: 0, trait: 'void',    votes: 15, stats: { spd: 1.12, fuel: 20, mag: 2.0, coin: 3 } },
-  { id: 47, tpl: 2,  color: '#ff2b2b', color2: '#ffd9d9', cost: 0, trait: 'reaper',  votes: 25, stats: { spd: 1.15, fuel: 25, mag: 1.6, coin: 4 } },
+  { id: 45, tpl: 11, color: '#ffd700', color2: '#fff8dc', cost: 0, trait: 'emperor', adShip: true, adNeed: 5, stats: { spd: 1.10, fuel: 30, mag: 1.8, coin: 3 } },
+  { id: 46, tpl: 14, color: '#6b5bff', color2: '#d9d4ff', cost: 0, trait: 'void',    adShip: true, adNeed: 5, stats: { spd: 1.12, fuel: 20, mag: 2.0, coin: 3 } },
+  { id: 47, tpl: 2,  color: '#ff2b2b', color2: '#ffd9d9', cost: 0, trait: 'reaper',  adShip: true, adNeed: 5, stats: { spd: 1.15, fuel: 25, mag: 1.6, coin: 4 } },
 ];
 SHIPS.forEach(s => { s.nameKey = 'ship' + s.id; });
 /* Trait power scales with mastery stars (see game-core traitPow) */
@@ -2127,7 +2123,7 @@ const Platform = {
  * SPACE DASH — VKAdapter (VK Bridge, verified against official
  * vk-bridge types: packages/core/src/types/data.ts)
  *   ads:      VKWebAppShowNativeAds {ad_format:'interstitial'|'reward'}
- *   payments: VKWebAppShowOrderBox {type:'item', item} (votes, Direct Games)
+ *   payments: NOT used — the game has no IAP/donations by design (ads only)
  *   storage:  VKWebAppStorageSet / VKWebAppStorageGet
  *   pause:    events VKWebAppViewHide / VKWebAppViewRestore
  *   lang:     VKWebAppGetUserInfo → language_code
@@ -2232,14 +2228,6 @@ const VKAdapter = {
     if (this._lang) return this._lang;
     const n = (navigator.language || 'en').slice(0, 2).toLowerCase();
     return n === 'ru' ? 'ru' : 'en';
-  },
-  /* votes purchase (Direct Games order box) */
-  purchase(item) {
-    return this._send('VKWebAppShowOrderBox', { type: 'item', item }).then(r => {
-      if (!r) return false;
-      const st = r.status || (r.result && r.result.status) || r;
-      return st !== 'cancel' && st !== 'cancelled' && st !== false;
-    }, () => false);
   },
   isVK() { return !!this._b; },
 };
@@ -3824,8 +3812,7 @@ function renderShips() {
     card.appendChild(body);
     if (!avail) {
       const cost = document.createElement('div'); cost.className = 'cost';
-      if (ship.adShip) cost.innerHTML = pixIconSVG('od', 10) + ' ' + Math.min(3, S.save.ad_progress[ship.id] || 0) + '/3';
-      else if (ship.votes) cost.innerHTML = pixIconSVG('star', 10) + ' ' + ship.votes;
+      if (ship.adShip) cost.innerHTML = pixIconSVG('od', 10) + ' ' + Math.min(ship.adNeed || 3, S.save.ad_progress[ship.id] || 0) + '/' + (ship.adNeed || 3);
       else cost.innerHTML = pixIconSVG('coin', 10) + ' ' + ship.cost;
       card.appendChild(cost);
     }
@@ -3887,16 +3874,13 @@ function openShipDetail(id) {
   D.sd_equip.disabled = equipped;
   D.sd_equip.className = 'btn ' + (equipped ? 'gray' : 'green');
   if (ship.adShip) {
-    const n = Math.min(3, S.save.ad_progress[ship.id] || 0);
+    const need = ship.adNeed || 3;
+    const n = Math.min(need, S.save.ad_progress[ship.id] || 0);
     D.sd_ad.style.display = 'block';
-    D.sd_ad.innerHTML = n >= 3 ? t('ad_ship_done', { n: 3 }) : pixIconSVG('od', 14) + ' ' + t('ad_ship_btn', { n: n });
-    D.sd_ad.disabled = false;
-  } else if (ship.votes) {
-    D.sd_ad.style.display = 'block';
-    D.sd_ad.innerHTML = pixIconSVG('star', 14) + ' ' + t('votes_buy', { n: ship.votes });
+    D.sd_ad.innerHTML = n >= need ? t('ad_ship_done', { n: need, m: need }) : pixIconSVG('od', 14) + ' ' + t('ad_ship_btn', { n: n, m: need });
     D.sd_ad.disabled = false;
   } else D.sd_ad.style.display = 'none';
-  D.sd_buy.style.display = (!avail && !ship.adShip && !ship.votes) ? 'block' : 'none';
+  D.sd_buy.style.display = (!avail && !ship.adShip) ? 'block' : 'none';
   D.sd_buy.innerHTML = pixIconSVG('coin', 12) + ' ' + ship.cost +
     (ship.ach ? ' · ' + esc(t('locked_ach', { name: t(ship.ach) })) : '') +
     (ship.reqShips ? ' · ' + S.save.ships_unlocked.length + '/' + ship.reqShips : '');
@@ -4075,33 +4059,22 @@ function bindUI() {
     const ship = shipById(S.shipView);
     if (!ship || isShipAvailable(ship.id)) return;
     if (ship.adShip) {
+      const need = ship.adNeed || 3;
       showRewarded(() => {
         const n = (S.save.ad_progress[ship.id] || 0) + 1;
         S.save.ad_progress[ship.id] = n;
-        if (n >= 3) {
+        if (n >= need) {
           S.save.ships_unlocked.push(ship.id);
           checkAchievements();
           Aud.win();
           toast(t(ship.nameKey) + '!', 'star');
         } else {
-          toast(t('ad_ship_btn', { n }), 'od');
+          toast(t('ad_ship_btn', { n, m: need }), 'od');
         }
         saveGame(true);
         openShipDetail(ship.id);
         renderShips();
         syncCoinsUI();
-      });
-    } else if (ship.votes) {
-      const a = Platform.adapter;
-      if (!a || a.name !== 'vk' || typeof a.purchase !== 'function') { toast(t('votes_only'), 'lock'); return; }
-      a.purchase('ship_' + ship.id).then(ok => {
-        if (ok) {
-          S.save.ships_unlocked.push(ship.id);
-          S.save.ship_equipped = ship.id;
-          checkAchievements(); saveGame(true); Aud.win();
-          toast(t(ship.nameKey) + '!', 'star');
-          closeShipDetail(); renderShips();
-        } else toast(t('votes_cancel'), 'lock');
       });
     }
   });
@@ -4115,10 +4088,9 @@ function bindUI() {
   });
   click(D.sd_buy, () => {
     const ship = shipById(S.shipView);
-    if (!ship || isShipAvailable(ship.id)) return;
+    if (!ship || isShipAvailable(ship.id) || ship.adShip) return;
     if (ship.reqShips && S.save.ships_unlocked.length < ship.reqShips) { toast(S.save.ships_unlocked.length + '/' + ship.reqShips, 'lock'); return; }
     if (ship.ach && S.save.achievements.indexOf(ship.ach) === -1) { toast(t('locked_ach', { name: t(ship.ach) }), 'lock'); return; }
-    if (ship.id >= 31) { offerRent(ship); closeShipDetail(); return; }
     if (S.save.coins >= ship.cost) {
       S.save.coins -= ship.cost;
       S.save.ships_unlocked.push(ship.id);
