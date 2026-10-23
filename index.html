@@ -222,6 +222,8 @@
     color:#7edcff; font-weight:900; font-size:13px; letter-spacing:1px; }
   .sd-desc { color:#aebcdf; font-size:12.5px; line-height:1.45; text-align:center; font-weight:600;
     max-width:290px; }
+  .sd-note { color:#8fa3d9; font-size:11px; line-height:1.4; font-weight:700; text-align:center;
+    background:#10152c; border:1px dashed #2e3a6e; border-radius:4px; padding:6px 9px; }
   .sd-stats { width:100%; display:flex; flex-direction:column; gap:4px; }
   .sd-stats .st { display:flex; justify-content:space-between; font-size:11.5px; color:#8fa3d9; font-weight:800;
     background:#10152c; border:1px solid #232c55; border-radius:3px; padding:3px 8px; }
@@ -335,6 +337,7 @@
       <div id="sd-stats" class="sd-stats"></div>
       <div id="sd-mast" class="sd-mast"></div>
       <button id="sd-equip" class="btn green"></button>
+      <div id="sd-adnote" class="sd-note" style="display:none"></div>
       <button id="sd-buy" class="btn gold" style="display:none"></button>
       <button id="sd-ad" class="btn purple" style="display:none"></button>
       <button id="sd-back" class="btn gray small" data-i18n="sd_back">Назад</button>
@@ -411,6 +414,17 @@
       <button id="btn-double" class="btn gold" style="display:none"></button>
       <button id="btn-retry" class="btn" data-i18n="retry">ЕЩЁ РАЗ</button>
       <button id="btn-over-menu" class="btn gray" data-i18n="menu">МЕНЮ</button>
+    </div>
+  </div>
+
+  <!-- AD EXPLAIN DIALOG -->
+  <div id="ad-dlg" class="overlay">
+    <div class="obox" style="max-width:340px">
+      <div class="otitle" style="font-size:18px" data-i18n="ad_dlg_title">Почему нет рекламы?</div>
+      <div id="ad-dlg-text" class="sd-desc" style="max-width:none"></div>
+      <button id="ad-dlg-coins" class="btn gold" style="display:none"></button>
+      <button id="ad-dlg-sim" class="btn purple" style="display:none" data-i18n="ad_dlg_sim">Включить симуляцию рекламы</button>
+      <button id="ad-dlg-ok" class="btn gray small" data-i18n="ad_dlg_ok">Понятно</button>
     </div>
   </div>
 
@@ -523,6 +537,11 @@ const I18N = {
     ts_collector: 'Комбо-бонус каждые 5 звеньев',
     ts_emperor: 'Старт каждого забега: щит + магнит', ts_void: 'Фаза 2 с каждые 10 с + магнит 2.0',
     ts_reaper: 'Близко! +10, овердрайв без перегрева',
+    ad_fallback: 'Или разблокировать за {n} монет',
+    ad_noenv: 'Реклама работает только в VK (мобильное приложение) и на платформах GamePush. Здесь разблокируй монетами или смотри поток через ?adsmock=1',
+    ad_dlg_title: 'Почему нет рекламы?',
+    ad_dlg_text: 'Настоящая реклама показывается только внутри мобильного приложения VK (при включённой монетизации в кабинете) или на платформах GamePush. В этой среде кнопка не может показать ролик и не выдаёт награду без него. Чтобы увидеть рекламный поток и счётчики, запусти игру с параметром ?adsmock=1 — симуляция показа 3 секунды.',
+    ad_dlg_sim: 'Включить симуляцию рекламы', ad_dlg_ok: 'Понятно',
     ad_ship_btn: 'Смотреть рекламу ({n}/{m})', ad_ship_done: 'Реклама просмотрена ({n}/{m})',
     sd_equipped: 'Выбран', sd_back: 'Назад', sd_progress: 'Прогресс мастерства',
     mast1: '500 м этим кораблём', mast2: '150 монет за забег', mast3: 'Пережить 2 шторма',
@@ -671,6 +690,11 @@ const I18N = {
     ts_collector: 'Combo bonus every 5 links',
     ts_emperor: 'Every run starts with shield + magnet', ts_void: 'Phase 2 s / 10 s + magnet 2.0',
     ts_reaper: 'Near-miss +10, overdrive without overheat',
+    ad_fallback: 'Or unlock for {n} coins',
+    ad_noenv: 'Ads run only in VK (mobile app) and GamePush platforms. Here: unlock with coins or preview the flow via ?adsmock=1',
+    ad_dlg_title: 'Why is there no ad?',
+    ad_dlg_text: 'Real ads play only inside the VK mobile app (with monetization enabled in the dev cabinet) or on GamePush platforms. In this environment the button cannot play a video and never grants a reward without one. To see the ad flow and counters, open the game with ?adsmock=1 — a 3-second simulated ad.',
+    ad_dlg_sim: 'Enable ad simulation', ad_dlg_ok: 'Got it',
     ad_ship_btn: 'Watch ad ({n}/{m})', ad_ship_done: 'Ads completed ({n}/{m})',
     sd_equipped: 'Equipped', sd_back: 'Back', sd_progress: 'Mastery progress',
     mast1: 'Fly 500 m with this ship', mast2: '150 coins in one run', mast3: 'Survive 2 storms',
@@ -813,14 +837,14 @@ const SHIPS = [
   { id: 39, trait: 'escort', tpl: 12, color: '#ab47bc', color2: '#f3e5f5', cost: 2400, ach: 'a_d10000',stats: { spd: 1.10, fuel: 30, mag: 2.0, coin: 3 } },
   { id: 40, trait: 'chrono', tpl: 11, color: '#ffffff', color2: '#ffd54f', cost: 2500, reqShips: 39, stats: { spd: 1.15, fuel: 40, mag: 2.0, coin: 5 } },
   // 41-44: рекламные корабли (3 rewarded-просмотра, личный счётчик)
-  { id: 41, adNeed: 3, tpl: 9,  color: '#66d9ff', color2: '#e3f9ff', cost: 0, trait: 'scout',  adShip: true, stats: { spd: 1.05, fuel: 10, mag: 1.4, coin: 2 } },
-  { id: 42, adNeed: 3, tpl: 8,  color: '#d9a441', color2: '#ffe9c2', cost: 0, trait: 'tanker', adShip: true, stats: { spd: 0.98, fuel: 30, mag: 1.2, coin: 2 } },
-  { id: 43, adNeed: 3, tpl: 7,  color: '#ff66cc', color2: '#ffe1f4', cost: 0, trait: 'lucky',  adShip: true, stats: { spd: 1.09, fuel: 10, mag: 1.5, coin: 2 } },
-  { id: 44, adNeed: 3, tpl: 6,  color: '#66ff99', color2: '#dcffe9', cost: 0, trait: 'repair', adShip: true, stats: { spd: 1.02, fuel: 20, mag: 1.4, coin: 2 } },
+  { id: 41, adNeed: 3, fallbackCost: 1200, tpl: 9,  color: '#66d9ff', color2: '#e3f9ff', cost: 0, trait: 'scout',  adShip: true, stats: { spd: 1.05, fuel: 10, mag: 1.4, coin: 2 } },
+  { id: 42, adNeed: 3, fallbackCost: 1400, tpl: 8,  color: '#d9a441', color2: '#ffe9c2', cost: 0, trait: 'tanker', adShip: true, stats: { spd: 0.98, fuel: 30, mag: 1.2, coin: 2 } },
+  { id: 43, adNeed: 3, fallbackCost: 1600, tpl: 7,  color: '#ff66cc', color2: '#ffe1f4', cost: 0, trait: 'lucky',  adShip: true, stats: { spd: 1.09, fuel: 10, mag: 1.5, coin: 2 } },
+  { id: 44, adNeed: 3, fallbackCost: 1800, tpl: 6,  color: '#66ff99', color2: '#dcffe9', cost: 0, trait: 'repair', adShip: true, stats: { spd: 1.02, fuel: 20, mag: 1.4, coin: 2 } },
   // 45-47: премиум за голоса VK (10 / 15 / 25)
-  { id: 45, tpl: 11, color: '#ffd700', color2: '#fff8dc', cost: 0, trait: 'emperor', adShip: true, adNeed: 5, stats: { spd: 1.10, fuel: 30, mag: 1.8, coin: 3 } },
-  { id: 46, tpl: 14, color: '#6b5bff', color2: '#d9d4ff', cost: 0, trait: 'void',    adShip: true, adNeed: 5, stats: { spd: 1.12, fuel: 20, mag: 2.0, coin: 3 } },
-  { id: 47, tpl: 2,  color: '#ff2b2b', color2: '#ffd9d9', cost: 0, trait: 'reaper',  adShip: true, adNeed: 5, stats: { spd: 1.15, fuel: 25, mag: 1.6, coin: 4 } },
+  { id: 45, fallbackCost: 2500, tpl: 11, color: '#ffd700', color2: '#fff8dc', cost: 0, trait: 'emperor', adShip: true, adNeed: 5, stats: { spd: 1.10, fuel: 30, mag: 1.8, coin: 3 } },
+  { id: 46, fallbackCost: 3000, tpl: 14, color: '#6b5bff', color2: '#d9d4ff', cost: 0, trait: 'void',    adShip: true, adNeed: 5, stats: { spd: 1.12, fuel: 20, mag: 2.0, coin: 3 } },
+  { id: 47, fallbackCost: 4000, tpl: 2,  color: '#ff2b2b', color2: '#ffd9d9', cost: 0, trait: 'reaper',  adShip: true, adNeed: 5, stats: { spd: 1.15, fuel: 25, mag: 1.6, coin: 4 } },
 ];
 SHIPS.forEach(s => { s.nameKey = 'ship' + s.id; });
 /* Trait power scales with mastery stars (see game-core traitPow) */
@@ -1914,11 +1938,41 @@ const LocalAdapter = {
     const i = a.indexOf(cb); if (i >= 0) a.splice(i, 1);
   },
   _emit(ev, arg) { (this._cbs[ev] || []).slice().forEach(cb => { try { cb(arg); } catch (e) {} }); },
-  interstitial(cbOk, cbErr) { setTimeout(() => cbOk && cbOk(), 30); },
+  _mock() {
+    if (this._mockFlag === undefined) {
+      try { this._mockFlag = new URLSearchParams(location.search).has('adsmock'); } catch (e) { this._mockFlag = false; }
+    }
+    return this._mockFlag;
+  },
+  _simAd(kind, done) {
+    const ov = document.createElement('div');
+    ov.id = 'sim-ad';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;font-family:system-ui,sans-serif';
+    ov.innerHTML = '<div style="border:2px solid #ffd76a;background:#161c3a;color:#ffd76a;font-weight:900;font-size:20px;letter-spacing:2px;padding:22px 34px;border-radius:8px">SIM AD · ' + kind.toUpperCase() + '</div>' +
+      '<div id="sim-cd" style="color:#8fa3d9;font-weight:800;font-size:15px">3…</div>' +
+      '<div style="color:#5b6478;font-size:11px;font-weight:700">debug ?adsmock=1: реальная реклама — в VK (mobile) и GamePush</div>';
+    document.body.appendChild(ov);
+    let t = 3;
+    const iv = setInterval(() => {
+      t--;
+      const el = document.getElementById('sim-cd');
+      if (el) el.textContent = t + '…';
+      if (t <= 0) { clearInterval(iv); ov.remove(); done(); }
+    }, 1000);
+  },
+  interstitial(cbOk, cbErr) {
+    if (this._mock()) { this._simAd('interstitial', () => cbOk && cbOk()); return; }
+    setTimeout(() => cbOk && cbOk(), 30);
+  },
   showBanner() { return Promise.resolve(false); },
   hideBanner() { return Promise.resolve(false); },
   rewarded(cbReward, cbClose, cbErr) {
-    // вне платформ рекламы нет: награда НЕ выдаётся, прогресс не блокируется
+    // вне платформ рекламы нет: награда НЕ выдаётся, прогресс не блокируется;
+    // исключение — явный debug-режим ?adsmock=1 с видимой симуляцией показа
+    if (this._mock()) {
+      this._simAd('rewarded', () => { cbReward && cbReward(); cbClose && cbClose(true); });
+      return;
+    }
     setTimeout(() => { cbErr && cbErr(); cbClose && cbClose(false); }, 30);
   },
   save(data) {
@@ -2436,7 +2490,7 @@ const S = {
   pauseSource: null, sessionStart: Date.now(), lastInter: 0, playedMs: 0,
   boost: { shield: false, magnet: false },
   tut: { active: false, step: 0 },
-  bot: false, god: false,
+  bot: false, god: false, adsReal: false,
   shake: 0, shakeMag: 0, flash: 0, hitstop: 0, boomFx: null,
   shootStar: null, shootAt: 4,
 };
@@ -2611,7 +2665,8 @@ function cacheDom() {
     'hud-dist', 'hud-coins', 'hud-mode', 'hud-fuel', 'hud-speed', 'pu-chips', 'btn-pause',
     'skill-bar', 'quests-box', 'weekly-box',
     'scr-ship', 'sd-sprite', 'sd-name', 'sd-stars', 'sd-trait', 'sd-desc', 'sd-stats', 'sd-mast',
-    'sd-equip', 'sd-buy', 'sd-ad', 'sd-back',
+    'sd-equip', 'sd-buy', 'sd-ad', 'sd-back', 'sd-adnote',
+    'ad-dlg', 'ad-dlg-text', 'ad-dlg-coins', 'ad-dlg-sim', 'ad-dlg-ok',
     'btn-resume', 'btn-restart', 'btn-pmenu',
     'over-title', 'over-record', 'over-dist', 'over-coins', 'over-dodges', 'over-mission', 'over-ach',
     'btn-cont-ad', 'btn-cont-coins', 'btn-double', 'btn-retry', 'btn-over-menu',
@@ -3409,13 +3464,21 @@ function showInterstitial(after) {
   const fin = () => { if (!done) { done = true; after && after(); } };
   try { Platform.adapter.interstitial(fin, fin); } catch (e) { fin(); }
 }
+function openAdDialog() {
+  D.ad_dlg_text.textContent = t('ad_dlg_text');
+  const ship = S.shipView ? shipById(S.shipView) : null;
+  const canCoins = ship && ship.adShip && ship.fallbackCost && S.save.coins >= ship.fallbackCost;
+  D.ad_dlg_coins.style.display = canCoins ? 'block' : 'none';
+  if (canCoins) D.ad_dlg_coins.textContent = t('ad_fallback', { n: ship.fallbackCost });
+  D.ad_dlg_sim.style.display = (Platform.adapter.name === 'local') ? 'block' : 'none';
+  D.ad_dlg.classList.add('active');
+}
 function showRewarded(onReward) {
   SD.events.rewarded++;
   let granted = false;
   const grant = () => { if (!granted) { granted = true; onReward(); } };
   const deny = () => {
-    const a = Platform.adapter;
-    toast(t(a && a._adsNote === 'unsupported' ? 'ad_unsupported' : 'ad_unavailable'), 'lock');
+    openAdDialog();
   };
   try {
     Platform.adapter.rewarded(grant, () => {}, deny);
@@ -3684,6 +3747,7 @@ function showScreen(name) {
   D.scr_pause.classList.remove('active');
   D.scr_over.classList.remove('active');
   D.scr_ship.classList.remove('active');
+  D.ad_dlg.classList.remove('active');
   D.hud.classList.remove('active');
   if (name === 'hud') D.hud.classList.add('active');
   else if (name === 'pause') { D.hud.classList.add('active'); D.scr_pause.classList.add('active'); }
@@ -3887,15 +3951,20 @@ function openShipDetail(id) {
   D.sd_equip.textContent = equipped ? t('equipped') : t('equip');
   D.sd_equip.disabled = equipped;
   D.sd_equip.className = 'btn ' + (equipped ? 'gray' : 'green');
-  if (ship.adShip) {
+  if (ship.adShip && S.adsReal) {
     const need = ship.adNeed || 3;
     const n = Math.min(need, S.save.ad_progress[ship.id] || 0);
     D.sd_ad.style.display = 'block';
     D.sd_ad.innerHTML = n >= need ? t('ad_ship_done', { n: need, m: need }) : pixIconSVG('od', 14) + ' ' + t('ad_ship_btn', { n: n, m: need });
     D.sd_ad.disabled = false;
   } else D.sd_ad.style.display = 'none';
-  D.sd_buy.style.display = (!avail && !ship.adShip) ? 'block' : 'none';
-  D.sd_buy.innerHTML = pixIconSVG('coin', 12) + ' ' + ship.cost +
+  if (ship.adShip && !S.adsReal) {
+    D.sd_adnote.style.display = 'block';
+    D.sd_adnote.textContent = t('ad_noenv');
+  } else D.sd_adnote.style.display = 'none';
+  const showBuy = !avail && (!ship.adShip || !!ship.fallbackCost);
+  D.sd_buy.style.display = showBuy ? 'block' : 'none';
+  D.sd_buy.innerHTML = (ship.adShip ? esc(t('ad_fallback', { n: ship.fallbackCost })) + ' ' : '') + pixIconSVG('coin', 12) + ' ' + (ship.adShip ? ship.fallbackCost : ship.cost) +
     (ship.ach ? ' · ' + esc(t('locked_ach', { name: t(ship.ach) })) : '') +
     (ship.reqShips ? ' · ' + S.save.ships_unlocked.length + '/' + ship.reqShips : '');
   D.scr_ship.classList.add('active');
@@ -4102,7 +4171,19 @@ function bindUI() {
   });
   click(D.sd_buy, () => {
     const ship = shipById(S.shipView);
-    if (!ship || isShipAvailable(ship.id) || ship.adShip) return;
+    if (!ship || isShipAvailable(ship.id)) return;
+    if (ship.adShip) {
+      const cost = ship.fallbackCost || 0;
+      if (S.save.coins >= cost) {
+        S.save.coins -= cost;
+        S.save.ships_unlocked.push(ship.id);
+        S.save.ship_equipped = ship.id;
+        checkAchievements(); saveGame(true); Aud.win();
+        toast(t(ship.nameKey) + '!', 'star');
+        closeShipDetail(); renderShips();
+      } else toast(t('not_enough_coins'));
+      return;
+    }
     if (ship.reqShips && S.save.ships_unlocked.length < ship.reqShips) { toast(S.save.ships_unlocked.length + '/' + ship.reqShips, 'lock'); return; }
     if (ship.ach && S.save.achievements.indexOf(ship.ach) === -1) { toast(t('locked_ach', { name: t(ship.ach) }), 'lock'); return; }
     if (S.save.coins >= ship.cost) {
@@ -4114,6 +4195,25 @@ function bindUI() {
       closeShipDetail();
       renderShips();
     } else toast(t('not_enough_coins'));
+  });
+  click(D.ad_dlg_ok, () => D.ad_dlg.classList.remove('active'));
+  click(D.ad_dlg_sim, () => {
+    try {
+      const u = new URL(location.href);
+      u.searchParams.set('adsmock', '1');
+      location.href = u.toString();
+    } catch (e) {}
+  });
+  click(D.ad_dlg_coins, () => {
+    const ship = shipById(S.shipView);
+    D.ad_dlg.classList.remove('active');
+    if (!ship || !ship.fallbackCost || S.save.coins < ship.fallbackCost) return;
+    S.save.coins -= ship.fallbackCost;
+    S.save.ships_unlocked.push(ship.id);
+    S.save.ship_equipped = ship.id;
+    checkAchievements(); saveGame(true); Aud.win();
+    toast(t(ship.nameKey) + '!', 'star');
+    closeShipDetail(); renderShips();
   });
   click(D.btn_tut_skip, () => {
     S.tut.active = false;
@@ -4151,6 +4251,7 @@ async function boot() {
   bindUI();
   const a = await Platform.init();
   S.adapter = a;
+  try { S.adsReal = (a.name !== 'local') || new URLSearchParams(location.search).has('adsmock'); } catch (e) { S.adsReal = a.name !== 'local'; }
   bindPlatformEvents(a);
   try {
     const cloud = await Promise.race([
