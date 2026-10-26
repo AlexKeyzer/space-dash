@@ -196,8 +196,9 @@
   #scr-menu.active .panel > *:nth-child(6){animation-delay:.22s}
   @keyframes menuIn { from { transform:translateY(12px); opacity:0; } }
 
-  /* skill bar */
-  #skill-bar { position:absolute; right:calc(10px + env(safe-area-inset-right)); bottom:calc(14px + env(safe-area-inset-bottom));
+  /* skill bar — v6: pinned to viewport bottom-right (thumb-reachable),
+     was absolute inside the top HUD box and collided with fuel bar */
+  #skill-bar { position:fixed; right:calc(10px + env(safe-area-inset-right)); bottom:calc(14px + env(safe-area-inset-bottom));
     display:flex; flex-direction:column; gap:8px; pointer-events:none; }
   .sk { pointer-events:auto; display:flex; align-items:center; gap:6px; border:2px solid #0a0d20; border-radius:4px;
     background:#161c3a; color:#ffd76a; padding:7px 9px; cursor:pointer; box-shadow:0 3px 0 #0a0d20;
@@ -205,9 +206,24 @@
   .sk em { font-style:normal; color:#8fa3d9; }
   .sk.on { border-color:#7a4a26; color:#ffb27a; animation:blink .5s steps(2) infinite; }
   .sk.off { opacity:.45; }
+  /* v6: pilot rank / sectors / adrenaline / XP */
+  .rank-pill { display:flex; flex-direction:column; gap:3px; align-items:center; width:100%; max-width:340px;
+    background:#161c3a; border:2px solid #2e3a6e; border-radius:4px; padding:5px 12px;
+    font-size:11.5px; font-weight:900; color:#cfe0ff; letter-spacing:.5px; box-shadow:0 3px 0 #0a0d20; }
+  .rank-pill .rbar { width:100%; height:5px; background:#0a0d20; border:1px solid #2e3a6e; }
+  .rank-pill .rbar i { display:block; height:100%; width:0%; background:#8a4bd6; }
+  .pu-chip.sector { color:#9ef0ff; border-color:#2e4a6e; }
+  .pu-chip.sector.danger { color:#ff6b5e; border-color:#7a2620; animation:blink .6s steps(2) infinite; }
+  .pu-chip.adr { color:#ffd76a; border-color:#7a4a26; animation:blink .5s steps(2) infinite; }
+  #over-xp { width:100%; display:flex; flex-direction:column; gap:4px; align-items:center; }
+  #over-xp-title { font-size:12.5px; font-weight:900; color:#cfe0ff; letter-spacing:.5px; text-align:center; }
+  #over-xp .xpbar { width:100%; max-width:280px; height:9px; background:#0a0d20; border:2px solid #2e3a6e; }
+  #over-xp-bar { display:block; height:100%; width:0%; background:#8a4bd6;
+    transition:width .7s cubic-bezier(.2,.8,.2,1); }
+  #over-xp-delta { font-size:12px; font-weight:900; color:#ffd76a; text-align:center; }
+  #over-hint { color:#8fa3d9; font-size:11px; font-weight:800; text-align:center; line-height:1.4; }
   /* quests / weekly cards */
-  .qcard { padding:8px 10px; }
-  .qhead { font-weight:900; font-size:12px; letter-spacing:1px; color:#cfe0ff; margin-bottom:5px;
+  .qcard { padding:8px 10px; }  .qhead { font-weight:900; font-size:12px; letter-spacing:1px; color:#cfe0ff; margin-bottom:5px;
     display:flex; align-items:center; gap:6px; }
   .qrow { display:flex; align-items:center; gap:7px; padding:3px 0; font-size:11.5px; color:#aebcdf; }
   .qrow .qt { flex:1; min-width:0; font-weight:700; }
@@ -256,6 +272,10 @@
       <div class="coins-pill"><span class="ic"></span><span id="menu-coins">0</span></div>
       <div class="title" data-i18n="app_name">Космический Забег</div>
       <div class="subtitle" id="menu-best"></div>
+      <div id="menu-rank" class="rank-pill">
+        <span id="menu-rank-txt">Ур. 1 · Новобранец</span>
+        <span class="rbar"><i id="menu-rank-bar"></i></span>
+      </div>
       <button id="btn-play" class="btn gold" data-i18n="play">ИГРАТЬ</button>
       <div class="boost-row">
         <div class="boost" id="bst-shield">
@@ -406,9 +426,16 @@
         <span><span data-i18n="run_distance">Дистанция</span>: <b id="over-dist">0</b></span>
         <span><i data-ic="coin" data-ic-size="13"></i> <b id="over-coins">0</b></span>
         <span><span data-i18n="run_dodges">Уворотов</span>: <b id="over-dodges">0</b></span>
+        <span><span data-i18n="run_sector">Сектор</span>: <b id="over-sector">1</b></span>
+      </div>
+      <div id="over-xp">
+        <div id="over-xp-title"></div>
+        <div class="xpbar"><i id="over-xp-bar"></i></div>
+        <div id="over-xp-delta"></div>
       </div>
       <div id="over-mission" class="omsg" style="display:none"></div>
       <div id="over-ach" class="omsg" style="display:none"></div>
+      <div id="over-hint" style="display:none"></div>
       <button id="btn-cont-ad" class="btn purple" style="display:none"></button>
       <button id="btn-cont-coins" class="btn green" style="display:none"></button>
       <button id="btn-double" class="btn gold" style="display:none"></button>
@@ -457,6 +484,10 @@ window.onGPInit = function (gp) {
 (function(){
 var __qs = new URLSearchParams(location.search);
 if (__qs.has('local') || __qs.has('mock')) return;
+/* Placeholder-креденшелы: SDK НЕ грузим. Иначе он загружается быстрее
+   VK-моста, window.gp перехватывает выбор платформы, а все рекламные
+   запросы падают с 400 — реальная реклама VK не показывается. */
+if (!window.GP_PROJECT_ID || /YOUR_/i.test(String(window.GP_PROJECT_ID))) return;
 ((s,c,o,r,e)=>{var f=0,t={},p=0,m=r.length,w=[],j=u=>{if(f||t[u])return;f=1;t[u]=1;var d=c.createElement(o);d.async=1;d.src=u+e;d.onerror=()=>{f=0;n()};var a=c.getElementsByTagName(o)[0];a.parentNode.insertBefore(d,a)},n=()=>{for(var k=0;k<w.length;k++)if(!t[w[k]])return j(w[k])},q=()=>{++p>=m&&!f&&n()};r.forEach(u=>s.fetch(u,{method:"HEAD"}).then(x=>{x&&x.ok?(w.push(u),j(u)):q()}).catch(q));s.setTimeout(()=>{f||n()},5000)})(window,document,"script",atob("aHR0cHM6Ly9ncy5lcG9uZXNoLmNvbS9zZGsvZ2FtZS1zY29yZS5qcyxodHRwczovL3MzLmdhbWVwdXNoLmNvbS9maWxlcy9ncy9zZGsvZ2FtZS1zY29yZS5qcyxodHRwczovL3MzLWV1LmdhbWVwdXNoLmNvbS9zZGsvZ2FtZS1zY29yZS5qcyxodHRwczovL2dhbWVwdXNoLmNvbS9zZGsvZ2FtZS1zY29yZS5qcw==").split(","),"?projectId="+encodeURIComponent(window.GP_PROJECT_ID)+"&publicToken="+encodeURIComponent(window.GP_PUBLIC_TOKEN)+"&callback=onGPInit");
 })();
 </script>
@@ -623,6 +654,21 @@ const I18N = {
     loading: 'Загрузка…',
     cloud_sync: 'Облачный сейв загружен',
     not_enough_coins: 'Недостаточно монет',
+    // v6: sectors / biomes / pilot rank / adrenaline
+    biome_belt: 'Пояс астероидов', biome_nebula: 'Туманность', biome_ice: 'Ледяное поле',
+    biome_rust: 'Ржавый предел', biome_void: 'Пустота',
+    sector_banner: 'СЕКТОР {n}', sector_chip: 'S{n}',
+    sector_clear: 'Сектор {n} пройден! +{c}', sector_best: 'Рекорд: сектор {n}',
+    danger_now: 'ОПАСНАЯ ЗОНА!',
+    adr_ready: 'АДРЕНАЛИН: монеты ×2!', adr_chip: 'АДРЕНАЛИН ×2',
+    xp_label: 'Опыт пилота', xp_gained: '+{n} опыта', xp_gained2: '+{n} опыта (×2 первый вылет)',
+    level_up: 'УРОВЕНЬ {n}! +{c} монет',
+    rank_pill: 'Ур. {n} · {title}', run_sector: 'Сектор',
+    rank1: 'Новобранец', rank2: 'Пилот', rank3: 'Ас', rank4: 'Капитан',
+    rank5: 'Командор', rank6: 'Адмирал', rank7: 'Легенда космоса', rank8: 'Бессмертный',
+    first_flight: 'Первый вылет дня: опыт ×2!',
+    hint_title: 'До звания «{title}»: {n} ур.', hint_chest: 'Сундук серии — через {n} дн.',
+    hint_lvl: 'До уровня {n}: {xp} опыта',
   },
   en: {
     app_name: 'Space Dash',
@@ -771,6 +817,21 @@ const I18N = {
     loading: 'Loading…',
     cloud_sync: 'Cloud save loaded',
     not_enough_coins: 'Not enough coins',
+    // v6: sectors / biomes / pilot rank / adrenaline
+    biome_belt: 'Asteroid Belt', biome_nebula: 'Nebula', biome_ice: 'Ice Field',
+    biome_rust: 'Rust Reach', biome_void: 'The Void',
+    sector_banner: 'SECTOR {n}', sector_chip: 'S{n}',
+    sector_clear: 'Sector {n} cleared! +{c}', sector_best: 'Best: sector {n}',
+    danger_now: 'DANGER ZONE!',
+    adr_ready: 'ADRENALINE: coins ×2!', adr_chip: 'ADRENALINE ×2',
+    xp_label: 'Pilot XP', xp_gained: '+{n} XP', xp_gained2: '+{n} XP (×2 first flight)',
+    level_up: 'LEVEL {n}! +{c} coins',
+    rank_pill: 'Lv. {n} · {title}', run_sector: 'Sector',
+    rank1: 'Rookie', rank2: 'Pilot', rank3: 'Ace', rank4: 'Captain',
+    rank5: 'Commander', rank6: 'Admiral', rank7: 'Space Legend', rank8: 'Immortal',
+    first_flight: 'First flight of the day: XP ×2!',
+    hint_title: 'Next rank «{title}» in {n} lv.', hint_chest: 'Streak chest in {n} d.',
+    hint_lvl: 'To level {n}: {xp} XP',
   },
 };
 
@@ -1762,6 +1823,9 @@ class Generator {
     opts = opts || {};
     this.rnd = mulberry32(opts.seed || ((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0));
     this.mod = opts.mod || 'normal';
+    /* v6: biome tunes ONLY obstacle-type mix and coin chance.
+       Block counts / free-lane logic are untouched → G1/G2 hold. */
+    this.biome = opts.biome || 'belt';
     this.nextRowDist = 16;
     this.lastFree = [0, 1, 2];
     this.canAt = 22;
@@ -1805,6 +1869,8 @@ class Generator {
 
   _freeOf(blocked) { return [0, 1, 2].filter(l => blocked.indexOf(l) === -1); }
 
+  setBiome(b) { this.biome = b || 'belt'; }
+
   makeRow(dist, t, wave) {
     const rnd = this.rnd;
     const storm = this.mod === 'storm' || !!wave;
@@ -1833,11 +1899,13 @@ class Generator {
     const obstacles = [];
     if (blocked.length) {
       let moving = null;
+      const bhP = this.biome === 'void' ? 0.2 : 0.12;      // v6: void sector — больше чёрных дыр
+      const dbP = this.biome === 'rust' ? 0.46 : 0.34;      // v6: ржавый пояс — больше обломков
       for (const lane of blocked) {
         const r = rnd();
         let type = 'asteroid';
-        if (t >= 45 && r < 0.12) type = 'blackhole';
-        else if (!clean && t >= 20 && r < 0.34) type = 'debris';
+        if (t >= 45 && r < bhP) type = 'blackhole';
+        else if (!clean && t >= 20 && r < dbP) type = 'debris';
         if (type !== 'asteroid') { moving = { type, lane }; break; }
       }
       // late game: paired debris wall (still ≤2 blocked lanes → G1 holds)
@@ -1896,7 +1964,8 @@ class Generator {
     const pickLane = safe.length ? safe : free;
     const rl = () => pickLane[Math.floor(rnd() * pickLane.length)];
 
-    const coinChance = t < 15 ? 0.92 : (rain ? 0.95 : 0.6);
+    const coinChance0 = t < 15 ? 0.92 : (rain ? 0.95 : 0.6);
+    const coinChance = this.biome === 'nebula' ? Math.min(0.97, coinChance0 + 0.18) : coinChance0; // v6: туманность сокровищ
     if (pickLane.length && rnd() < coinChance) {
       const lane = rl();
       const n = t < 15 ? 4 + Math.floor(rnd() * 2) : 3 + Math.floor(rnd() * 3);
@@ -1914,6 +1983,54 @@ class Generator {
     return { dist, blocked, free, obstacles, items };
   }
 }
+
+/* ===== house-ads.js ===== */
+/* ============================================================
+ * SPACE DASH — House Ads slot
+ * Когда реального рекламного инвентаря нет (прямой веб, GitHub
+ * Pages, сбой платформенной рекламы), показывается ВИДИМЫЙ
+ * рекламный слот: кросс-промо другой игры разработчика,
+ * каунтдаун и прогресс-бар. Награда/продолжение потока — только
+ * после полного просмотра. Внутри VK / GamePush слот не
+ * используется: там идёт реальный инвентарь платформы.
+ * ============================================================ */
+'use strict';
+
+const HouseAds = {
+  _busy: false,
+  show(kind, onDone) {
+    if (this._busy) { onDone && onDone(); return; }
+    this._busy = true;
+    const ru = ((navigator.language || 'en').slice(0, 2) === 'ru');
+    const secs = kind === 'rewarded' ? 4 : 3;
+    const el = document.createElement('div');
+    el.id = 'sim-ad';
+    el.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(4,6,18,.96);display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif';
+    el.innerHTML =
+      '<div style="width:min(86vw,340px);border:2px solid #2e3a6e;border-radius:8px;background:#161c3a;padding:18px 16px;text-align:center;box-shadow:0 6px 0 #0a0d20">' +
+        '<div style="color:#8fa3d9;font-size:10px;font-weight:800;letter-spacing:2px;margin-bottom:10px">' + (ru ? 'РЕКЛАМА' : 'AD') + ' · ' + secs + 's</div>' +
+        '<div style="font-size:22px;font-weight:900;color:#ffd76a;letter-spacing:1px;text-shadow:0 3px 0 #7a4a00">' + (ru ? 'ФРУКТОВЫЙ СНАЙПЕР' : 'FRUIT SNIPER') + '</div>' +
+        '<div style="color:#aebcdf;font-size:12px;font-weight:700;margin:8px 0 14px">' + (ru ? 'Режь фрукты метко — играй бесплатно в VK!' : 'Slice fruit with precision — play free on VK!') + '</div>' +
+        '<div style="height:8px;background:#0a0d20;border:1px solid #2e3a6e"><div id="sim-bar" style="height:100%;width:100%;background:#58d68d"></div></div>' +
+        '<div id="sim-cd" style="color:#8fa3d9;font-size:11px;font-weight:800;margin-top:8px">' + (ru ? 'Награда после полного просмотра' : 'Reward after full view') + '</div>' +
+      '</div>';
+    document.body.appendChild(el);
+    const bar = el.querySelector('#sim-bar');
+    const t0 = performance.now();
+    const self = this;
+    const tick = () => {
+      const p = Math.min(1, (performance.now() - t0) / (secs * 1000));
+      if (bar) bar.style.width = ((1 - p) * 100).toFixed(1) + '%';
+      if (p < 1) requestAnimationFrame(tick);
+      else {
+        el.remove();
+        self._busy = false;
+        onDone && onDone();
+      }
+    };
+    requestAnimationFrame(tick);
+  },
+};
 
 /* ===== platform-local.js ===== */
 /* ============================================================
@@ -1938,42 +2055,11 @@ const LocalAdapter = {
     const i = a.indexOf(cb); if (i >= 0) a.splice(i, 1);
   },
   _emit(ev, arg) { (this._cbs[ev] || []).slice().forEach(cb => { try { cb(arg); } catch (e) {} }); },
-  _mock() {
-    if (this._mockFlag === undefined) {
-      try { this._mockFlag = new URLSearchParams(location.search).has('adsmock'); } catch (e) { this._mockFlag = false; }
-    }
-    return this._mockFlag;
-  },
-  _simAd(kind, done) {
-    const ov = document.createElement('div');
-    ov.id = 'sim-ad';
-    ov.style.cssText = 'position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;font-family:system-ui,sans-serif';
-    ov.innerHTML = '<div style="border:2px solid #ffd76a;background:#161c3a;color:#ffd76a;font-weight:900;font-size:20px;letter-spacing:2px;padding:22px 34px;border-radius:8px">SIM AD · ' + kind.toUpperCase() + '</div>' +
-      '<div id="sim-cd" style="color:#8fa3d9;font-weight:800;font-size:15px">3…</div>' +
-      '<div style="color:#5b6478;font-size:11px;font-weight:700">debug ?adsmock=1: реальная реклама — в VK (mobile) и GamePush</div>';
-    document.body.appendChild(ov);
-    let t = 3;
-    const iv = setInterval(() => {
-      t--;
-      const el = document.getElementById('sim-cd');
-      if (el) el.textContent = t + '…';
-      if (t <= 0) { clearInterval(iv); ov.remove(); done(); }
-    }, 1000);
-  },
   interstitial(cbOk, cbErr) {
-    if (this._mock()) { this._simAd('interstitial', () => cbOk && cbOk()); return; }
-    setTimeout(() => cbOk && cbOk(), 30);
+    HouseAds.show('interstitial', () => cbOk && cbOk());
   },
-  showBanner() { return Promise.resolve(false); },
-  hideBanner() { return Promise.resolve(false); },
   rewarded(cbReward, cbClose, cbErr) {
-    // вне платформ рекламы нет: награда НЕ выдаётся, прогресс не блокируется;
-    // исключение — явный debug-режим ?adsmock=1 с видимой симуляцией показа
-    if (this._mock()) {
-      this._simAd('rewarded', () => { cbReward && cbReward(); cbClose && cbClose(true); });
-      return;
-    }
-    setTimeout(() => { cbErr && cbErr(); cbClose && cbClose(false); }, 30);
+    HouseAds.show('rewarded', () => { cbReward && cbReward(); cbClose && cbClose(true); });
   },
   save(data) {
     try { this._store && this._store.setItem('sd_cloud_mock', JSON.stringify(data)); } catch (e) {}
@@ -2089,13 +2175,16 @@ const GamePushAdapter = {
       cbClose && cbClose(!!success || rewarded);
     };
     if (!gp || !gp.ads || typeof gp.ads.showRewardedVideo !== 'function' || gp.ads.isRewardedAvailable === false) {
-      cbErr && cbErr(); cbClose && cbClose(false); return;
+      HouseAds.show('rewarded', () => { cbReward && cbReward(); cbClose && cbClose(true); });
+      return;
     }
     this._safe(() => gp.ads.on('rewarded:reward', giveReward));
     this._safe(() => gp.ads.on('rewarded:close', close));
     this._safe(() => {
       const p = gp.ads.showRewardedVideo();
-      if (p && p.then) p.then(s => { if (s) giveReward(); close(s !== false); }, () => close(false));
+      if (p && p.then) p.then(s => { if (s) giveReward(); close(s !== false); }, () => {
+        HouseAds.show('rewarded', () => { giveReward(); close(true); });
+      });
     });
     setTimeout(() => close(rewarded), 120000);
   },
@@ -2136,8 +2225,16 @@ const GamePushAdapter = {
   isMusicMuted() { return this._musicMuted; },
 };
 
-/* Bootstrap: GamePush SDK if it arrives within 2 s, else LocalAdapter.
-   Force local with ?local=1 (autotests). */
+/* Bootstrap — порядок выбора платформы (боевая схема «Фруктового Снайпера»):
+   1) ?local=1 → LocalAdapter (отладка/тесты);
+   2) window.gp уже есть (?mock=1 или быстрый SDK) → GamePushAdapter;
+   3) заданы РЕАЛЬНЫЕ GamePush-креденшелы → ждём SDK до 2 с;
+   4) мы внутри VK (isInsideVk: параметры vk_app_id/vk_user_id, referrer
+      vk.com/vk.ru, UA «VK», iframe) → грузим vk-bridge с двух зеркал
+      и работаем через VKWebAppShowNativeAds — РЕАЛЬНАЯ реклама;
+   5) иначе (GitHub Pages, прямой веб) → LocalAdapter + house-ads слот.
+   VKWebAppInit/init защищены таймаутом: вне VK-среды мост может
+   никогда не резолвиться — игра не должна висеть на загрузке. */
 const Platform = {
   adapter: LocalAdapter,
   init() {
@@ -2148,60 +2245,93 @@ const Platform = {
         this.adapter = a;
         resolve(a);
       };
-      let forceLocal = false;
-      try { forceLocal = new URLSearchParams(location.search).has('local'); } catch (e) {}
-      if (forceLocal) { LocalAdapter.init().then(() => finish(LocalAdapter)); return; }
+      const goLocal = () => { if (!done) LocalAdapter.init().then(() => finish(LocalAdapter)); };
+      const withTimeout = (p, ms, tag) =>
+        Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(tag)), ms))]);
+      let forceLocal = false, gpCreds = false;
+      try {
+        forceLocal = new URLSearchParams(location.search).has('local');
+        gpCreds = !!(window.GP_PROJECT_ID && !/YOUR_/i.test(String(window.GP_PROJECT_ID)));
+      } catch (e) {}
+      if (forceLocal) { goLocal(); return; }
 
       const tryVK = () => {
         if (done) return;
-        loadVkBridge(3000).then(b => {
+        loadVkBridge(6000).then(b => {
           if (done) return;
-          if (!b) { LocalAdapter.init().then(() => finish(LocalAdapter)); return; }
-          VKAdapter.init().then(() => finish(VKAdapter)).catch(() => { LocalAdapter.init().then(() => finish(LocalAdapter)); });
+          if (!b || typeof b.send !== 'function') { goLocal(); return; }
+          withTimeout(VKAdapter.init(), 3000, 'vk-init-timeout')
+            .then(() => { if (!done) finish(VKAdapter); }, () => goLocal());
         });
       };
       const tryGP = () => {
-        if (done) return;
+        if (done) return false;
         if (window.gp) {
-          GamePushAdapter.init()
-            .then(() => finish(GamePushAdapter))
-            .catch(() => { LocalAdapter.init().then(() => finish(LocalAdapter)); });
+          withTimeout(GamePushAdapter.init(), 4000, 'gp-init-timeout')
+            .then(() => { if (!done) finish(GamePushAdapter); }, () => goLocal());
+          return true;
         }
+        return false;
       };
-      window.addEventListener('gp-ready', tryGP);
-      tryGP();
-      setTimeout(() => { if (!done) tryVK(); }, 2000);
+      if (tryGP()) return;
+      if (gpCreds) {
+        window.addEventListener('gp-ready', tryGP);
+        setTimeout(() => { if (!done && !tryGP()) tryVK(); }, 2000);
+        return;
+      }
+      if (VKAdapter.isInsideVk()) tryVK(); else goLocal();
     });
   },
 };
 
 /* ===== platform-vk.js ===== */
 /* ============================================================
- * SPACE DASH — VKAdapter (VK Bridge, verified against official
- * vk-bridge types: packages/core/src/types/data.ts)
- *   ads:      VKWebAppShowNativeAds {ad_format:'interstitial'|'reward'}
- *   payments: NOT used — the game has no IAP/donations by design (ads only)
- *   storage:  VKWebAppStorageSet / VKWebAppStorageGet
- *   pause:    events VKWebAppViewHide / VKWebAppViewRestore
- *   lang:     VKWebAppGetUserInfo → language_code
- * Every send is guarded: outside VK (GitHub Pages in a browser)
- * the adapter fails fast and Platform falls back to LocalAdapter.
+ * SPACE DASH — VKAdapter (VK Bridge)
+ * Повторяет проверенную боевую схему рекламы из «Фруктового
+ * Снайпера» (игра, где реклама реально показывается):
+ *  1) bridge грузится ВСЕГДА, с двух зеркал (unpkg + jsdelivr),
+ *     таймаут 4 с на зеркало — работает и на десктопе VK;
+ *  2) платформа = 'vk' по самому факту наличия bridge;
+ *  3) после init — preloadAds(): CheckNativeAds обоих форматов
+ *     прогревает рекламные материалы;
+ *  4) interstitial — ShowNativeAds НАПРЯМУЮ без предпроверки;
+ *  5) rewarded — CheckNativeAds, а при false/ошибке всё равно
+ *     попытка показа (часть клиентов не реализует check честно);
+ *  6) subscribe читает и event.type, и event.detail.type.
+ * Отличие по политике наград: награда выдаётся ТОЛЬКО после
+ * успешного резолва показа (без «рекламы просто так»).
+ * Методы сверены с типами vk-bridge (core/src/types/data.ts):
+ *   VKWebAppShowNativeAds {ad_format:'reward'|'interstitial'}
+ *   VKWebAppCheckNativeAds, VKWebAppShowBannerAd/HideBannerAd,
+ *   VKWebAppStorageSet/Get, VKWebAppViewHide/ViewRestore,
+ *   VKWebAppGetUserInfo, VKWebAppInit.
  * ============================================================ */
 'use strict';
 
-const VK_BRIDGE_URL = 'https://unpkg.com/@vkontakte/vk-bridge@3/dist/browser.min.js';
+const VK_BRIDGE_URLS = [
+  'https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js',
+  'https://cdn.jsdelivr.net/npm/@vkontakte/vk-bridge/dist/browser.min.js',
+];
 
 function loadVkBridge(timeoutMs) {
   return new Promise(resolve => {
     if (window.vkBridge) return resolve(window.vkBridge);
     let done = false;
+    let idx = 0;
     const fin = (b) => { if (!done) { done = true; resolve(b || null); } };
-    const sc = document.createElement('script');
-    sc.src = VK_BRIDGE_URL; sc.async = true;
-    sc.onload = () => fin(window.vkBridge || null);
-    sc.onerror = () => fin(null);
-    document.head.appendChild(sc);
-    setTimeout(() => fin(null), timeoutMs || 3000);
+    const perUrl = Math.round((timeoutMs || 8000) / VK_BRIDGE_URLS.length);
+    function tryNext() {
+      if (done) return;
+      if (idx >= VK_BRIDGE_URLS.length) { fin(null); return; }
+      const s = document.createElement('script');
+      s.src = VK_BRIDGE_URLS[idx++];
+      s.async = true;
+      const to = setTimeout(() => { s.onload = null; s.onerror = null; tryNext(); }, perUrl);
+      s.onload = () => { clearTimeout(to); fin(window.vkBridge || null); };
+      s.onerror = () => { clearTimeout(to); tryNext(); };
+      document.head.appendChild(s);
+    }
+    tryNext();
   });
 }
 
@@ -2210,6 +2340,7 @@ const VKAdapter = {
   _cbs: {},
   _b: null,
   _lang: null,
+  _bannerClosed: false,
 
   _send(method, params) {
     try {
@@ -2217,24 +2348,37 @@ const VKAdapter = {
       return (p && p.then) ? p : Promise.resolve(p);
     } catch (e) { return Promise.reject(e); }
   },
+  _evType(e) { return (e && (e.type || (e.detail && e.detail.type))) || ''; },
+
   init() {
     this._b = window.vkBridge;
-    if (!this._b) return Promise.reject(new Error('no vkBridge'));
+    if (!this._b || typeof this._b.send !== 'function') return Promise.reject(new Error('no vkBridge'));
     try {
       this._b.subscribe((e) => {
-        if (!e || !e.type) return;
-        if (e.type === 'VKWebAppViewHide') this._emit('pause');
-        if (e.type === 'VKWebAppBannerAdClosedByUser') this._bannerClosed = true;
-        if (e.type === 'VKWebAppViewRestore') this._emit('resume');
+        const type = this._evType(e);
+        if (type === 'VKWebAppViewHide') this._emit('pause');
+        if (type === 'VKWebAppViewRestore') this._emit('resume');
+        if (type === 'VKWebAppBannerAdClosedByUser') this._bannerClosed = true;
       });
     } catch (e) {}
     this._send('VKWebAppGetUserInfo').then(u => {
       const l = String((u && (u.language_code || u.lang)) || '').slice(0, 2).toLowerCase();
       this._lang = (l === 'ru' || l === 'en') ? l : null;
     }).catch(() => {});
-    return this._send('VKWebAppInit').then(() => {}, () => {});
+    return this._send('VKWebAppInit').then(() => { this.preloadAds(); }, () => { this.preloadAds(); });
   },
-  ready() { return Promise.resolve(); },
+  /* прогрев рекламных материалов сразу после init (как в боевой игре) */
+  preloadAds() {
+    this._send('VKWebAppCheckNativeAds', { ad_format: 'interstitial' }).catch(() => {});
+    this._send('VKWebAppCheckNativeAds', { ad_format: 'reward' }).catch(() => {});
+  },
+  ready() {
+    this._safeViewSettings();
+    return Promise.resolve();
+  },
+  _safeViewSettings() {
+    this._send('VKWebAppSetViewSettings', { status_bar_style: 'dark', action_bar_color: '#000000' }).catch(() => {});
+  },
   gameplayStart() {},
   gameplayStop() {},
   on(ev, cb) { (this._cbs[ev] = this._cbs[ev] || []).push(cb); },
@@ -2243,38 +2387,43 @@ const VKAdapter = {
 
   showBanner() {
     return this._send('VKWebAppShowBannerAd', {
-      banner_location: 'top',
-      layout_type: 'resize',
-      orientation: 'horizontal',
-      height_type: 'compact',
+      banner_location: 'top', layout_type: 'resize', orientation: 'horizontal', height_type: 'compact',
     }).then(() => true, () => false);
   },
-  hideBanner() {
-    return this._send('VKWebAppHideBannerAd').then(() => true, () => false);
-  },
+  hideBanner() { return this._send('VKWebAppHideBannerAd').then(() => true, () => false); },
+
+  /* interstitial — напрямую, без предпроверки (боевая схема) */
   interstitial(cbOk, cbErr) {
+    if (!this.isInsideVk()) { HouseAds.show('interstitial', () => cbOk && cbOk()); return; }
     let settled = false;
-    const ok = () => { if (!settled) { settled = true; cbOk && cbOk(); } };
-    const err = () => { if (!settled) { settled = true; cbErr ? cbErr() : ok(); } };
-    this._send('VKWebAppCheckNativeAds', { ad_format: 'interstitial' }).then(chk => {
-      if (!chk || chk.result !== true) { err(); return; }   // нет рекламы — просто продолжаем без неё
-      this._send('VKWebAppShowNativeAds', { ad_format: 'interstitial' }).then(ok, err);
-    }, err);
+    const ok = () => { if (!settled) { settled = true; this.preloadAds(); cbOk && cbOk(); } };
+    const err = () => { if (!settled) { settled = true; this.preloadAds(); cbErr ? cbErr() : (cbOk && cbOk()); } };
+    this._send('VKWebAppShowNativeAds', { ad_format: 'interstitial' }).then(
+      d => (d && d.result ? ok() : ok()),   // показ состоялся (или платформа молча завершила) — поток продолжаем
+      err);
     setTimeout(ok, 60000);
   },
+
+  /* rewarded: check → show; при check=false всё равно пытаемся показать */
   rewarded(cbReward, cbClose, cbErr) {
     let granted = false, settled = false;
     const give = () => { if (!granted) { granted = true; cbReward && cbReward(); } };
     const close = (s) => { if (!settled) { settled = true; cbClose && cbClose(s); } };
-    const fail = () => { cbErr && cbErr(); close(false); };
-    // сначала проверяем доступность рекламы на этом устройстве/платформе
+    const fail = () => { this.preloadAds(); cbErr && cbErr(); close(false); };
+    if (!this.isInsideVk()) { HouseAds.show('rewarded', () => { give(); close(true); }); return; }
+    const show = () => {
+      this._send('VKWebAppShowNativeAds', { ad_format: 'reward' }).then(d => {
+        this.preloadAds();
+        if (d && d.result) { give(); close(true); } else fail();
+      }, () => { this.preloadAds(); fail(); });
+    };
     this._send('VKWebAppCheckNativeAds', { ad_format: 'reward' }).then(chk => {
-      if (!chk || chk.result !== true) { this._adsNote = 'unsupported'; fail(); return; }
-      this._send('VKWebAppShowNativeAds', { ad_format: 'reward' })
-        .then(() => { give(); close(true); }, fail);
-    }, fail);
+      show();   // показ пытаемся в любом случае: check не у всех клиентов честный
+      void chk;
+    }, () => show());
     setTimeout(() => { if (!settled) close(granted); }, 120000);
   },
+
   save(data) {
     return this._send('VKWebAppStorageSet', { key: 'sd_save_v1', value: JSON.stringify(data) })
       .then(() => true, () => false);
@@ -2290,19 +2439,43 @@ const VKAdapter = {
   },
   getLang() {
     if (this._lang) return this._lang;
+    try {
+      const q = new URLSearchParams(location.search);
+      const vl = (q.get('vk_language') || q.get('language') || '').slice(0, 2).toLowerCase();
+      if (vl === 'ru' || vl === 'en') return vl;
+    } catch (e) {}
     const n = (navigator.language || 'en').slice(0, 2).toLowerCase();
     return n === 'ru' ? 'ru' : 'en';
   },
   isVK() { return !!this._b; },
+  /* боевой детектор окружения (как в игре, где реклама работает):
+     bridge мог загрузиться и вне VK — рекламу считаем доступной
+     только если мы реально внутри VK-клиента */
+  isInsideVk() {
+    try {
+      const q = new URLSearchParams(location.search);
+      if (q.has('vk_app_id') || q.has('vk_user_id')) return true;
+      const ref = document.referrer || '';
+      if (ref.indexOf('vk.com') !== -1 || ref.indexOf('vk.ru') !== -1) return true;
+      const ua = navigator.userAgent || '';
+      if (ua.indexOf('VK') !== -1 || ua.indexOf('VKontakte') !== -1) return true;
+      if (window.parent !== window) return true;
+      return false;
+    } catch (e) { return false; }
+  },
 };
 
 /* ===== game-core.js ===== */
 /* ============================================================
- * SPACE DASH v2 — game core (visual overhaul for moderation rework)
+ * SPACE DASH v6 — game core (sector update for moderation rework)
  * Pure game logic + DOM UI + canvas renderer. Platform-agnostic.
  * No console.* calls. No external assets: all art is pre-rendered
- * to offscreen canvases at boot (metal-shaded ships, lit asteroids,
- * nebulae, planets, glow sprites).
+ * to offscreen canvases at boot (pixel-art ships, biome-tinted
+ * asteroids, nebulae, planets, stations, glow sprites).
+ * v6: 5 biome sectors (loop/pacing), pilot XP+rank (progression),
+ * adaptive chiptune + per-biome art (audiovisual), adrenaline
+ * risk-reward meter, daily first-flight ×2 XP, over-screen XP bar
+ * and next-goal hint (retention).
  * ============================================================ */
 (function () {
 'use strict';
@@ -2326,7 +2499,83 @@ const CFG = {
   OD_TIME: 5, OD_HEAT: 5, OD_CD: 20, OD_SPEED: 1.5,
   GHOST_CD: 20, GHOST_TIME: 1.5, REPAIR_T: 45, LUCKY_T: 20,
   CHEST_DAYS: [3, 7, 14], CHEST_REWARD: { 3: 300, 7: 700, 14: 1500 },
+  /* v6: sectors */
+  SECTOR_T: 42, CALM_FIRST: 8, DANGER_LAST: 10,
+  SECTOR_BONUS_BASE: 20, SECTOR_BONUS_STEP: 10, SECTOR_BONUS_CAP: 200,
+  XP_SECTOR_BASE: 20, XP_SECTOR_STEP: 5,
+  /* v6: adrenaline (near-miss risk/reward) */
+  ADR_MAX: 100, ADR_GAIN: 14, ADR_DECAY: 7, ADR_TIME: 4,
 };
+
+/* ================= BIOMES (v6) =================
+ * Five sector themes cycling every SECTOR_T seconds. Each biome has
+ * its own background bands, star/nebula colors, planet decoration,
+ * rail/lane colors, asteroid rock palette and music mood. */
+const BIOMES = [
+  { id: 'belt',
+    bands: ['#0b0f22', '#0d1226', '#10152b', '#131831', '#161b37'],
+    star: '#8fa3d9', star2: '#e8f2ff', neb: '#3a2f66',
+    railA: 'rgba(18,24,52,.55)', railB: '#26305e', railC: '#3a4a86',
+    line: '#1c2547', pulse: ['#7fb4ff', '#cfe3ff'], dust: '190,215,255',
+    rock: ['#8d6e63', '#7c8894', '#a1887f'], rockK: '#12172b',
+    deco: 'planet', p1: '#2c2450', p2: '#241d40', p3: '#3a2f66', ring: '#5b4a86',
+    chip: '#9ef0ff' },
+  { id: 'nebula',
+    bands: ['#150b24', '#190d2b', '#1e1033', '#24133c', '#2a1645'],
+    star: '#c9a3ff', star2: '#ffe9fb', neb: '#6a2a9a',
+    railA: 'rgba(38,18,64,.55)', railB: '#43266e', railC: '#6a3a9e',
+    line: '#2c1a47', pulse: ['#d9a3ff', '#f3d9ff'], dust: '216,190,255',
+    rock: ['#9d6ec8', '#7c6894', '#c86ea8'], rockK: '#160b22',
+    deco: 'cloud', p1: '#4a2070', p2: '#38185a', p3: '#7a3aaa', ring: '#9d6ec8',
+    chip: '#e9c9ff' },
+  { id: 'ice',
+    bands: ['#071820', '#091e28', '#0b2430', '#0d2a38', '#103140'],
+    star: '#bfe6ff', star2: '#ffffff', neb: '#1c4a60',
+    railA: 'rgba(12,38,52,.55)', railB: '#1e4a5e', railC: '#3a7a96',
+    line: '#14303c', pulse: ['#9ef0ff', '#e6fbff'], dust: '200,235,255',
+    rock: ['#7fb4d9', '#9ec9e8', '#5b8fb0'], rockK: '#081a22',
+    deco: 'planet', p1: '#27404f', p2: '#1d323e', p3: '#315264', ring: '#7fb4d9',
+    chip: '#bfe6ff' },
+  { id: 'rust',
+    bands: ['#170e07', '#1d1209', '#24170b', '#2b1c0e', '#332110'],
+    star: '#ffb27a', star2: '#ffe9d9', neb: '#5a3018',
+    railA: 'rgba(52,30,14,.55)', railB: '#5e3a1e', railC: '#96603a',
+    line: '#3a2412', pulse: ['#ffb27a', '#ffe0c9'], dust: '255,214,190',
+    rock: ['#a9714b', '#8a6a4f', '#c08a5a'], rockK: '#1a1008',
+    deco: 'station', p1: '#3a2a1a', p2: '#2a1e12', p3: '#4e3a24', ring: '#ffb27a',
+    chip: '#ffcf9e' },
+  { id: 'void',
+    bands: ['#04040c', '#060612', '#070716', '#09091b', '#0b0b20'],
+    star: '#6a6ad9', star2: '#b9b9ff', neb: '#14143a',
+    railA: 'rgba(10,10,30,.6)', railB: '#22224e', railC: '#3c3c86',
+    line: '#12122e', pulse: ['#8a8aff', '#d9d9ff'], dust: '170,170,235',
+    rock: ['#5a5a78', '#484860', '#6e6e8c'], rockK: '#050510',
+    deco: 'sun', p1: '#1a1a3e', p2: '#101030', p3: '#2a2a5e', ring: '#4a4a9e',
+    chip: '#b9b9ff' },
+];
+function biomeIdx(id) { for (let i = 0; i < BIOMES.length; i++) if (BIOMES[i].id === id) return i; return 0; }
+
+/* ================= MUSIC MOODS (v6) =================
+ * Per-biome bass/arp lines for the adaptive chiptune. Intensity
+ * (0..2) adds percussion and tempo; set from sector/speed/OD. */
+const MOODS = {
+  belt:   { bass: [110, 110, 130.8, 110, 87.3, 87.3, 98, 98],
+            arp:  [440, 523.3, 659.3, 523.3, 392, 523.3, 659.3, 784], aw: 'sine', av: 0.05 },
+  nebula: { bass: [98, 98, 116.5, 98, 87.3, 87.3, 98, 110],
+            arp:  [392, 493.9, 587.3, 493.9, 392, 587.3, 659.3, 784], aw: 'triangle', av: 0.055 },
+  ice:    { bass: [123.5, 123.5, 146.8, 123.5, 98, 98, 110, 110],
+            arp:  [493.9, 622.3, 740, 622.3, 493.9, 622.3, 830.6, 987.8], aw: 'sine', av: 0.045 },
+  rust:   { bass: [87.3, 87.3, 98, 87.3, 73.4, 73.4, 82.4, 82.4],
+            arp:  [349.2, 415.3, 466.2, 415.3, 349.2, 466.2, 523.3, 587.3], aw: 'square', av: 0.03 },
+  void:   { bass: [65.4, 65.4, 77.8, 65.4, 58.3, 58.3, 65.4, 69.3],
+            arp:  [261.6, 311.1, 392, 311.1, 261.6, 349.2, 392, 466.2], aw: 'sine', av: 0.05 },
+};
+
+/* ================= PILOT RANK (v6) ================= */
+const RANKS = [[1, 'rank1'], [2, 'rank2'], [4, 'rank3'], [6, 'rank4'], [9, 'rank5'], [12, 'rank6'], [16, 'rank7'], [21, 'rank8']];
+function xpNeed(l) { return 100 + (Math.max(1, l) - 1) * 60; }
+function rankTitleKey(l) { let k = 'rank1'; for (const r of RANKS) if (l >= r[0]) k = r[1]; return k; }
+function nextRankLvl(l) { for (const r of RANKS) if (r[0] > l) return r[0]; return 0; }
 
 /* ================= UTILS ================= */
 const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
@@ -2409,10 +2658,11 @@ function defaultSave() {
     achievements: [],
     daily: { streak: 0, best_streak: 0, last_date: '', rewarded_date: '', best: 0, best_date: '' },
     stats: { total_distance: 0, total_coins: 0, total_dodges: 0, total_runs: 0, best_distance: 0,
-             best_nodmg: 0, best_perfect: 0, shield_blocks: 0, cans: 0, powerups: 0, bh_total: 0 },
+             best_nodmg: 0, best_perfect: 0, shield_blocks: 0, cans: 0, powerups: 0, bh_total: 0, best_sector: 1 },
     settings: { sound: true, music: true, lang: null },
     tutorial_done: false,
     mastery: {},
+    pilot: { xp: 0, lvl: 1, lastXpDate: '' },
     quests: null,
     questStreak: { days: 0, last: '', chests: [] },
     lastSeen: '',
@@ -2437,6 +2687,10 @@ function sanitizeSave(o) {
   if (!s.ad_progress || typeof s.ad_progress !== 'object') s.ad_progress = {};
   s.questStreak = Object.assign({ days: 0, last: '', chests: [] }, o.questStreak || {});
   if (!Array.isArray(s.questStreak.chests)) s.questStreak.chests = [];
+  s.pilot = Object.assign({ xp: 0, lvl: 1, lastXpDate: '' }, o.pilot || {});
+  if (!(typeof s.pilot.xp === 'number' && s.pilot.xp >= 0)) s.pilot.xp = 0;
+  if (!(typeof s.pilot.lvl === 'number' && s.pilot.lvl >= 1)) s.pilot.lvl = 1;
+  if (typeof s.stats.best_sector !== 'number' || s.stats.best_sector < 1) s.stats.best_sector = 1;
   return s;
 }
 function loadLocal() {
@@ -2471,9 +2725,14 @@ function mergeSave(cloud, local) {
   s.daily.best = Math.max(c.daily.best, s.daily.best);
   if ((c.daily.last_date || '') > (s.daily.last_date || '')) { s.daily.last_date = c.daily.last_date; s.daily.rewarded_date = c.daily.rewarded_date; }
   const st = s.stats, cs = c.stats;
-  for (const k of ['total_distance','total_coins','total_dodges','total_runs','best_distance','best_nodmg','best_perfect','shield_blocks','cans','powerups','bh_total'])
+  for (const k of ['total_distance','total_coins','total_dodges','total_runs','best_distance','best_nodmg','best_perfect','shield_blocks','cans','powerups','bh_total','best_sector'])
     st[k] = Math.max(cs[k] || 0, st[k] || 0);
+  if (!st.best_sector || st.best_sector < 1) st.best_sector = 1;
   s.tutorial_done = s.tutorial_done || c.tutorial_done;
+  if (c.pilot && (c.pilot.lvl > s.pilot.lvl || (c.pilot.lvl === s.pilot.lvl && c.pilot.xp > s.pilot.xp))) {
+    s.pilot.lvl = c.pilot.lvl; s.pilot.xp = c.pilot.xp;
+  }
+  if ((c.pilot && c.pilot.lastXpDate || '') > (s.pilot.lastXpDate || '')) s.pilot.lastXpDate = c.pilot.lastXpDate;
   return s;
 }
 let saveTimer = 0;
@@ -2493,12 +2752,15 @@ const S = {
   bot: false, god: false, adsReal: false,
   shake: 0, shakeMag: 0, flash: 0, hitstop: 0, boomFx: null,
   shootStar: null, shootAt: 4,
+  sectorFx: null, overXp: null, bgFrom: -1, bgFade: 0,
+  menuBg: { i: 0, t: 0, fade: 0, prev: 0 },
 };
 
 /* ================= AUDIO ================= */
 const Aud = {
   ctx: null, master: null, sfxG: null, musG: null,
   eng: null, musicTimer: 0, mStep: 0, mNext: 0,
+  mood: 'belt', inten: 0,
   gpMute: false, gpMusicMute: false,
   ensure() {
     if (this.ctx) return this.ctx;
@@ -2567,28 +2829,56 @@ const Aud = {
   musicStart() {
     if (!this.ensure() || this.musicTimer) return;
     this.mStep = 0; this.mNext = this.ctx.currentTime + 0.1;
-    const BASS = [110, 110, 130.8, 110, 87.3, 87.3, 98, 98];
-    const ARP = [440, 523.3, 659.3, 523.3, 392, 523.3, 659.3, 784];
-    const spb = 60 / 128 / 2;
+    const spb0 = 60 / 128 / 2;
     const tick = () => {
       if (!this.ctx) return;
+      const tempo = 128 + (this.inten || 0) * 6;
+      const spb = 60 / tempo / 2;
       while (this.mNext < this.ctx.currentTime + 0.35) {
         if (this.musOk()) {
+          const mood = MOODS[this.mood] || MOODS.belt;
           const st = this.mStep % 8, tt = this.mNext, c = this.ctx;
+          const inten = this.inten || 0;
           const o = c.createOscillator(), g = c.createGain();
-          o.type = 'triangle'; o.frequency.value = BASS[st];
+          o.type = 'triangle'; o.frequency.value = mood.bass[st] * (inten >= 2 ? 1 : 1);
           g.gain.setValueAtTime(0.16, tt); g.gain.exponentialRampToValueAtTime(0.001, tt + spb * 0.9);
           o.connect(g); g.connect(this.musG); o.start(tt); o.stop(tt + spb);
           const o2 = c.createOscillator(), g2 = c.createGain();
-          o2.type = 'sine'; o2.frequency.value = ARP[st] * (this.mStep % 16 < 8 ? 1 : 1.19);
-          g2.gain.setValueAtTime(0.05, tt); g2.gain.exponentialRampToValueAtTime(0.001, tt + spb * 0.6);
+          o2.type = mood.aw; o2.frequency.value = mood.arp[st] * (this.mStep % 16 < 8 ? 1 : 1.19) * (inten >= 2 ? 2 : 1);
+          g2.gain.setValueAtTime(mood.av, tt); g2.gain.exponentialRampToValueAtTime(0.001, tt + spb * 0.6);
           o2.connect(g2); g2.connect(this.musG); o2.start(tt); o2.stop(tt + spb * 0.7);
+          /* percussion layers by intensity */
+          if (inten >= 1 && this.mStep % 2 === 1) {
+            const n = c.createBufferSource(), ng = c.createGain(), nf = c.createBiquadFilter();
+            const nb = c.createBuffer(1, Math.floor(c.sampleRate * 0.03), c.sampleRate), nd = nb.getChannelData(0);
+            for (let i = 0; i < nd.length; i++) nd[i] = (Math.random() * 2 - 1) * (1 - i / nd.length);
+            n.buffer = nb; nf.type = 'highpass'; nf.frequency.value = 6500;
+            ng.gain.setValueAtTime(0.035, tt); ng.gain.exponentialRampToValueAtTime(0.001, tt + 0.03);
+            n.connect(nf); nf.connect(ng); ng.connect(this.musG); n.start(tt);
+          }
+          if (inten >= 2 && st === 4) {
+            const n2 = c.createBufferSource(), ng2 = c.createGain(), nf2 = c.createBiquadFilter();
+            const nb2 = c.createBuffer(1, Math.floor(c.sampleRate * 0.07), c.sampleRate), nd2 = nb2.getChannelData(0);
+            for (let i = 0; i < nd2.length; i++) nd2[i] = (Math.random() * 2 - 1) * (1 - i / nd2.length);
+            n2.buffer = nb2; nf2.type = 'bandpass'; nf2.frequency.value = 1800; nf2.Q.value = 0.7;
+            ng2.gain.setValueAtTime(0.07, tt); ng2.gain.exponentialRampToValueAtTime(0.001, tt + 0.07);
+            n2.connect(nf2); nf2.connect(ng2); ng2.connect(this.musG); n2.start(tt);
+          }
         }
         this.mNext += spb; this.mStep++;
       }
     };
     this.musicTimer = setInterval(tick, 110);
     tick();
+  },
+  /* v6: adaptive layers — biome mood + intensity (0 calm, 1 drive, 2 storm) */
+  setMood(mood, inten) {
+    if (MOODS[mood]) this.mood = mood;
+    this.inten = clamp(inten || 0, 0, 2);
+  },
+  sectorRiser() {
+    if (!this.sfxOk()) return;
+    [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.tone(f, 0.09, 'square', 0.08), i * 65));
   },
   musicStop() { if (this.musicTimer) { clearInterval(this.musicTimer); this.musicTimer = 0; } },
 };
@@ -2605,11 +2895,23 @@ function rockPal(i) {
   const base = ['#8d6e63', '#7c8894', '#a1887f'][i % 3];
   return { K: '#12172b', L: pShade(base, 0.4), C: base, D: pShade(base, -0.45) };
 }
+/* v6: per-biome rock palettes — each sector tints asteroids uniquely */
+function rockPalB(bi, i) {
+  const b = BIOMES[bi % BIOMES.length];
+  const base = b.rock[i % b.rock.length];
+  return { K: b.rockK, L: pShade(base, 0.4), C: base, D: pShade(base, -0.45) };
+}
 function buildSprites() {
   buildPixelSprites(SPR);
-  LOW = { ships: [], ast: [], coin: [], flame: [], boom: [], hole: [] };
+  LOW = { ships: [], ast: [], astB: [], coin: [], flame: [], boom: [], hole: [] };
   for (const ship of SHIPS) LOW.ships.push(pixCanvas(SPR.px_ship[ship.tpl % SPR.px_ship.length], shipPal(ship.color)));
   for (let i = 0; i < SPR.px_ast.length; i++) LOW.ast.push(pixCanvas(SPR.px_ast[i], rockPal(i)));
+  for (let bi = 0; bi < BIOMES.length; bi++) {
+    const arr = [];
+    for (let i = 0; i < SPR.px_ast.length; i++) arr.push(pixCanvas(SPR.px_ast[i], rockPalB(bi, i)));
+    LOW.astB.push(arr);
+  }
+  LOW.astB[0] = LOW.ast;   // belt = classic palette (single source of truth)
   LOW.debris = pixCanvas(SPR.px_debris, { K: '#12172b', L: '#9aa7bb', W: '#dfe8f5', C: '#5b6577', D: '#272e3f', E: '#39435a', e: '#ff8a50' });
   for (const f of SPR.px_coin) LOW.coin.push(pixCanvas(f, { K: '#7a5200', L: '#fff3c4', Y: '#ffc53e', D: '#b57700' }));
   LOW.fuel = pixCanvas(SPR.px_fuel, { K: '#3d0c0c', E: '#8e1c1c', L: '#ff8a76', C: '#e0503c', W: '#ffeb3b' });
@@ -2631,6 +2933,7 @@ function bakeAll() {
   if (!LOW.ships) return;
   LOW.ships.forEach((low, i) => baked('ship' + (i + 1), low));
   LOW.ast.forEach((low, i) => baked('ast' + i, low));
+  if (LOW.astB) LOW.astB.forEach((arr, bi) => arr.forEach((low, i) => baked('ast' + i + '@' + bi, low)));
   baked('deb', LOW.debris);
   LOW.coin.forEach((low, i) => baked('coin' + i, low));
   ['fuel', 'shield', 'magnet', 'double', 'boost', 'portal', 'trader'].forEach(k => baked('it' + k, LOW[k]));
@@ -2669,6 +2972,8 @@ function cacheDom() {
     'ad-dlg', 'ad-dlg-text', 'ad-dlg-coins', 'ad-dlg-sim', 'ad-dlg-ok',
     'btn-resume', 'btn-restart', 'btn-pmenu',
     'over-title', 'over-record', 'over-dist', 'over-coins', 'over-dodges', 'over-mission', 'over-ach',
+    'over-sector', 'over-xp', 'over-xp-title', 'over-xp-bar', 'over-xp-delta', 'over-hint',
+    'menu-rank', 'menu-rank-txt', 'menu-rank-bar',
     'btn-cont-ad', 'btn-cont-coins', 'btn-double', 'btn-retry', 'btn-over-menu',
     'tut-text', 'btn-tut-skip', 'tut-hand'];
   for (const id of ids) D[id.replace(/-/g, '_')] = document.getElementById(id);
@@ -2694,55 +2999,143 @@ function layout() {
   makeDust();
 }
 function buildBackground() {
-  const cw = Math.max(2, Math.round(L.cw)), ch = Math.max(2, Math.round(L.ch));
+  BG.map = {}; BG.order = [];
+  for (let i = 0; i < BIOMES.length; i++) bgSet(i);   /* prewarm: no builds mid-run */
+  const s = BG.map['b0'];
+  L.bg = s.bg; L.deep = s.deep; L.rail = s.rail; L.pulse = s.pulse;
+}
+/* v6: per-biome background sets — lazily built, LRU-capped. Canvas
+   pixel buffers live outside the JS heap; the cap keeps VRAM sane
+   on desktop (2 sets) while mobile keeps all 5 biomes cached. */
+const BG = { map: {}, order: [] };
+function bgCap() { return BIOMES.length; } /* prewarmed at boot; half-res on big screens */
+function bgRes() { return (L.cw * L.ch > 1300000) ? 0.5 : 1; }
+function nebulaPatch(n, cx, cy, rx, ry, col, rnd, cnt) {
+  for (let i = 0; i < cnt; i++) {
+    const a = rnd() * 6.283, rr = Math.sqrt(rnd());
+    n.globalAlpha = 0.05 + rnd() * 0.13;
+    n.fillStyle = col;
+    const s = 2 + Math.floor(rnd() * 3) * 2;
+    n.fillRect(Math.floor(cx + Math.cos(a) * rx * rr), Math.floor(cy + Math.sin(a) * ry * rr), s, s);
+  }
+  n.globalAlpha = 1;
+}
+function makeBgSet(bi0) {
+  const bi = ((bi0 % BIOMES.length) + BIOMES.length) % BIOMES.length;
+  const b = BIOMES[bi];
+  const RS = bgRes();
+  const cw = Math.max(2, Math.round(L.cw * RS)), ch = Math.max(2, Math.round(L.ch * RS));
   const bg = mc(cw, ch), g = bg.getContext('2d');
-  const bands = ['#0b0f22', '#0d1226', '#10152b', '#131831', '#161b37'];
+  const bands = b.bands;
   const bh = ch / bands.length;
   for (let i = 0; i < bands.length; i++) {
     g.fillStyle = bands[i];
     g.fillRect(0, Math.floor(i * bh), cw, Math.ceil(bh) + 3);
     if (i) {
       g.fillStyle = bands[i - 1];
-      for (let x = 0; x < cw; x += 2) g.fillRect(x, Math.floor(i * bh) - 2 + (x % 4 === 0 ? 1 : 0), 1, 2);
+      g.fillRect(0, Math.floor(i * bh) - 2, cw, 1);
+      for (let x = (i % 2) * 4; x < cw; x += 8) g.fillRect(x, Math.floor(i * bh) - 3, 2, 2);
     }
   }
-  L.bg = bg;
   const deep = mc(cw, ch), n = deep.getContext('2d');
-  const rnd = mulberry32(9042);
-  for (let i = 0; i < 110; i++) {
-    n.fillStyle = i % 3 ? '#8fa3d9' : '#e8f2ff';
+  const rnd = mulberry32(9042 + bi * 733);
+  const starN = RS < 1 ? 70 : 110;
+  for (let i = 0; i < starN; i++) {
+    n.fillStyle = i % 3 ? b.star : b.star2;
     const sz = i % 11 === 0 ? 2 : 1;
     n.fillRect(Math.floor(rnd() * cw), Math.floor(rnd() * ch), sz, sz);
   }
-  const px = Math.floor(cw * 0.2), py = Math.floor(ch * 0.28), pr = Math.max(18, Math.floor(Math.min(cw, ch) * 0.16));
-  n.fillStyle = '#2c2450';
-  n.beginPath(); n.arc(px, py, pr, 0, 7); n.fill();
-  n.save(); n.beginPath(); n.arc(px, py, pr, 0, 7); n.clip();
-  n.fillStyle = '#241d40';
-  for (let y = -pr; y < pr; y += 2) for (let x = 0; x < pr; x += 2) n.fillRect(px + x + (y % 4 === 0 ? 1 : 0), py + y, 1, 1);
-  n.fillStyle = '#3a2f66';
-  n.fillRect(px - pr, py - Math.floor(pr * 0.35), pr * 2, 3);
-  n.fillRect(px - pr, py + Math.floor(pr * 0.25), pr * 2, 2);
-  n.restore();
-  n.fillStyle = '#5b4a86';
-  for (let a = 0; a < 6.28; a += 0.02) {
-    const rx = Math.cos(a) * pr * 1.5, ry = Math.sin(a) * pr * 0.38;
-    const xx = px + rx * Math.cos(-0.18) - ry * Math.sin(-0.18);
-    const yy = py + rx * Math.sin(-0.18) + ry * Math.cos(-0.18);
-    n.fillRect(Math.floor(xx), Math.floor(yy), 2, 2);
+  nebulaPatch(n, Math.floor(cw * (0.16 + 0.17 * bi)), Math.floor(ch * 0.64), Math.max(20, cw * 0.22), Math.max(12, ch * 0.09), b.neb, rnd, RS < 1 ? 90 : 150);
+  nebulaPatch(n, Math.floor(cw * (0.82 - 0.12 * bi)), Math.floor(ch * 0.24), Math.max(18, cw * 0.18), Math.max(10, ch * 0.07), b.neb, rnd, RS < 1 ? 70 : 120);
+  if (b.deco === 'planet') {
+    const px = Math.floor(cw * (bi === 2 ? 0.75 : 0.2)), py = Math.floor(ch * (bi === 2 ? 0.2 : 0.28));
+    const pr = Math.max(9, Math.floor(Math.min(cw, ch) * (bi === 2 ? 0.12 : 0.16)));
+    n.fillStyle = b.p1;
+    n.beginPath(); n.arc(px, py, pr, 0, 7); n.fill();
+    n.save(); n.beginPath(); n.arc(px, py, pr, 0, 7); n.clip();
+    n.fillStyle = b.p2;
+    for (let y = -pr; y < pr; y += 2) n.fillRect(px - pr, py + y, pr * 2, 1);
+    n.fillStyle = b.p3;
+    n.fillRect(px - pr, py - Math.floor(pr * 0.35), pr * 2, 2);
+    n.fillRect(px - pr, py + Math.floor(pr * 0.25), pr * 2, 1);
+    n.restore();
+    n.fillStyle = b.ring;
+    for (let a = 0; a < 6.28; a += 0.04) {
+      const rx = Math.cos(a) * pr * 1.5, ry = Math.sin(a) * pr * 0.38;
+      const xx = px + rx * Math.cos(-0.18) - ry * Math.sin(-0.18);
+      const yy = py + rx * Math.sin(-0.18) + ry * Math.cos(-0.18);
+      n.fillRect(Math.floor(xx), Math.floor(yy), 1, 1);
+    }
+  } else if (b.deco === 'cloud') {
+    nebulaPatch(n, Math.floor(cw * 0.3), Math.floor(ch * 0.3), Math.max(30, cw * 0.3), Math.max(17, ch * 0.12), b.p3, rnd, RS < 1 ? 140 : 240);
+    nebulaPatch(n, Math.floor(cw * 0.34), Math.floor(ch * 0.32), Math.max(15, cw * 0.14), Math.max(8, ch * 0.06), b.p1, rnd, RS < 1 ? 80 : 130);
+    n.fillStyle = b.star2;
+    n.fillRect(Math.floor(cw * 0.31), Math.floor(ch * 0.3), 2, 2);
+    n.globalAlpha = 0.5;
+    n.fillRect(Math.floor(cw * 0.31) - 2, Math.floor(ch * 0.3) + 1, 6, 1);
+    n.fillRect(Math.floor(cw * 0.31) + 1, Math.floor(ch * 0.3) - 2, 1, 6);
+    n.globalAlpha = 1;
+  } else if (b.deco === 'station') {
+    const sx = Math.floor(cw * 0.76), sy = Math.floor(ch * 0.22), sw = Math.max(13, Math.floor(cw * 0.12));
+    n.fillStyle = b.p1; n.fillRect(sx, sy, sw, Math.floor(sw * 0.55));
+    n.fillStyle = b.p2; n.fillRect(sx + 1, sy + Math.floor(sw * 0.55), sw - 2, Math.floor(sw * 0.5));
+    n.fillStyle = b.p3; n.fillRect(sx + Math.floor(sw * 0.42), sy - Math.floor(sw * 0.4), Math.max(2, Math.floor(sw * 0.14)), Math.floor(sw * 0.4));
+    n.fillStyle = '#ffb27a';
+    for (let wy = 0; wy < 3; wy++) for (let wx = 0; wx < 5; wx++)
+      if ((wx * 7 + wy * 3 + bi) % 3) n.fillRect(sx + 2 + wx * Math.floor((sw - 4) / 5), sy + 2 + wy * Math.floor(sw * 0.16), 1, 1);
+    n.fillStyle = b.ring;
+    n.fillRect(sx - Math.floor(sw * 0.3), sy + Math.floor(sw * 0.22), Math.floor(sw * 0.3), 1);
+    n.fillRect(sx + sw, sy + Math.floor(sw * 0.22), Math.floor(sw * 0.3), 1);
+  } else if (b.deco === 'sun') {
+    const sx = Math.floor(cw * 0.28), sy = Math.floor(ch * 0.16);
+    n.fillStyle = '#2a2a5e'; n.beginPath(); n.arc(sx, sy, 6, 0, 7); n.fill();
+    n.fillStyle = '#4a4a9e'; n.fillRect(sx - 1, sy - 1, 3, 3);
+    n.globalAlpha = 0.55; n.fillStyle = '#6a6ad9';
+    n.fillRect(sx - 9, sy - 1, 18, 1); n.fillRect(sx - 1, sy - 9, 1, 18);
+    n.globalAlpha = 1;
   }
-  L.deep = deep;
-  const rail = mc(Math.round(L.fieldW) + 16, ch), rg = rail.getContext('2d');
-  rg.fillStyle = 'rgba(18,24,52,.55)'; rg.fillRect(8, 0, Math.round(L.fieldW), ch);
+  const rail = mc(Math.round(L.fieldW) + 16, Math.round(L.ch)), rg = rail.getContext('2d');
+  rg.fillStyle = b.railA; rg.fillRect(8, 0, Math.round(L.fieldW), Math.round(L.ch));
   for (const ex of [8, 8 + Math.round(L.fieldW) - 3]) {
-    rg.fillStyle = '#26305e'; rg.fillRect(ex, 0, 3, ch);
-    rg.fillStyle = '#3a4a86'; rg.fillRect(ex + 1, 0, 1, ch);
+    rg.fillStyle = b.railB; rg.fillRect(ex, 0, 3, Math.round(L.ch));
+    rg.fillStyle = b.railC; rg.fillRect(ex + 1, 0, 1, Math.round(L.ch));
   }
-  L.rail = rail;
-  const pu = mc(2, 10), pg = pu.getContext('2d');
-  pg.fillStyle = '#7fb4ff'; pg.fillRect(0, 0, 2, 10);
-  pg.fillStyle = '#cfe3ff'; pg.fillRect(0, 3, 2, 4);
-  L.pulse = pu;
+  const pulse = mc(2, 10), pg = pulse.getContext('2d');
+  pg.fillStyle = b.pulse[0]; pg.fillRect(0, 0, 2, 10);
+  pg.fillStyle = b.pulse[1]; pg.fillRect(0, 3, 2, 4);
+  return { bg, deep, rail, pulse, b, bi, rs: RS };
+}
+function bgInUse(key) {
+  const bi = +key.slice(1);
+  const r = S.run;
+  if (r && (S.screen === 'playing' || S.screen === 'paused' || S.screen === 'gameover') && (r.biomeI || 0) === bi) return true;
+  if (S.bgFrom === bi && S.bgFade > 0) return true;
+  if (S.menuBg.i === bi || (S.menuBg.prev === bi && S.menuBg.fade > 0)) return true;
+  return false;
+}
+function bgSet(bi) {
+  bi = ((bi % BIOMES.length) + BIOMES.length) % BIOMES.length;
+  const key = 'b' + bi;
+  if (BG.map[key]) return BG.map[key];
+  const set = makeBgSet(bi);
+  BG.map[key] = set; BG.order.push(key);
+  const cap = bgCap();
+  while (BG.order.length > cap) {
+    let ev = -1;
+    for (let i = 0; i < BG.order.length - 1; i++) if (!bgInUse(BG.order[i])) { ev = i; break; }
+    if (ev === -1) break;
+    delete BG.map[BG.order[ev]]; BG.order.splice(ev, 1);
+  }
+  return set;
+}
+function drawBgSetFull(g, set, alpha) {
+  if (!set || alpha <= 0.004) return;
+  if (alpha < 1) g.globalAlpha = alpha;
+  g.drawImage(set.bg, 0, 0, L.cw, L.ch);
+  const oy = Math.floor(deepOff);
+  g.drawImage(set.deep, 0, oy, L.cw, L.ch);
+  g.drawImage(set.deep, 0, oy - L.ch, L.cw, L.ch);
+  if (alpha < 1) g.globalAlpha = 1;
 }
 function makeDust() {
   dust = [];
@@ -2797,6 +3190,9 @@ function newRun(mode, opts) {
     combo: 0, comboT: 0, coinSeq: 0,
     trail: [], fuelDrain: 1,
     storm: 0, stormPhase: -1, nextStormAt: 40,
+    /* v6: sectors + adrenaline */
+    sector: 1, biome: 'belt', biomeI: 0, sectorT: 0, dangerShown: false,
+    adr: 0, adrT: 0, sectorCoins: 0,
   };
   if (trait === 'veteran') run.fuel = run.fuelCap = Math.round(run.fuelCap * 0.5);
   if (trait === 'magnetolog') run.passiveMag = 1.2 * (1 + 0.15 * stars);
@@ -2804,12 +3200,76 @@ function newRun(mode, opts) {
   if (trait === 'emperor') { run.shield = true; run.magnetT = Math.max(run.magnetT, CFG.MAGNET_TIME * ship.stats.mag); }
   return run;
 }
+
+/* ================= SECTORS / PILOT (v6) ================= */
+function musicIntensity(r) {
+  let i = r.sector >= 5 ? 2 : (r.sector >= 3 ? 1 : 0);
+  if (r.od.t > 0) i = 2;
+  else if (r.storm === 1) i = Math.max(i, 1);
+  return i;
+}
+function enterSector(r) {
+  r.biomeI = (r.sector - 1) % BIOMES.length;
+  r.biome = BIOMES[r.biomeI].id;
+  if (r.gen && r.gen.setBiome) r.gen.setBiome(r.biome);
+  const bonus = Math.min(CFG.SECTOR_BONUS_CAP, CFG.SECTOR_BONUS_BASE + CFG.SECTOR_BONUS_STEP * (r.sector - 1));
+  r.coins += bonus; S.save.coins += bonus; r.sectorCoins += bonus;
+  const xp = CFG.XP_SECTOR_BASE + CFG.XP_SECTOR_STEP * (r.sector - 1);
+  grantXp(xp, true);
+  S.bgFrom = r.biomeI === 0 ? BIOMES.length - 1 : r.biomeI - 1;
+  S.bgFade = 1;
+  S.sectorFx = { n: r.sector, name: t('biome_' + r.biome), col: BIOMES[r.biomeI].chip, t: 0 };
+  S.flash = Math.max(S.flash, 0.2);
+  Aud.sectorRiser();
+  Aud.setMood(r.biome, musicIntensity(r));
+  toast(t('sector_clear', { n: r.sector - 1, c: bonus }), 'star');
+  syncCoinsUI();
+  saveGame(false);
+}
+function grantXp(n, quiet) {
+  const p = S.save.pilot;
+  p.xp += n;
+  const ups = [];
+  while (p.xp >= xpNeed(p.lvl)) {
+    p.xp -= xpNeed(p.lvl);
+    p.lvl++;
+    const rw = 40 + p.lvl * 10;
+    S.save.coins += rw;
+    ups.push({ lvl: p.lvl, rw });
+  }
+  if (!quiet) for (const u of ups.slice(-2)) toast(t('level_up', { n: u.lvl, c: u.rw }), 'star');
+  else if (ups.length) { const u = ups[ups.length - 1]; toast(t('level_up', { n: u.lvl, c: u.rw }), 'star'); }
+  if (ups.length) Aud.win();
+  return ups;
+}
+function overHint() {
+  const p = S.save.pilot;
+  const nr = nextRankLvl(p.lvl);
+  if (nr) return t('hint_title', { title: t(rankTitleKey(nr)), n: nr - p.lvl });
+  const ch = chestNext();
+  if (ch) return t('hint_chest', { n: ch - (S.save.questStreak ? S.save.questStreak.days : 0) });
+  return t('hint_lvl', { n: p.lvl + 1, xp: xpNeed(p.lvl) - p.xp });
+}
+function refreshOverXp() {
+  const info = S.overXp;
+  if (!info || !D.over_xp_title) return;
+  const p = S.save.pilot;
+  D.over_xp_title.textContent = t('rank_pill', { n: p.lvl, title: t(rankTitleKey(p.lvl)) }) + ' · ' + t('xp_label');
+  D.over_xp_delta.textContent = info.ff ? t('xp_gained2', { n: info.xp }) : t('xp_gained', { n: info.xp });
+  D.over_hint.textContent = overHint();
+  D.over_hint.style.display = 'block';
+}
 function startRun(mode, opts) {
   opts = opts || {};
   Aud.ensure(); Aud.resume();
   S.run = newRun(mode, opts);
   S.screen = 'playing';
   S.pauseSource = null; S.hitstop = 0;
+  S.bgFrom = -1; S.bgFade = 0;
+  S.sectorFx = { n: 1, name: t('biome_belt'), col: BIOMES[0].chip, t: 0 };
+  hudCache = { d: -1, c: -1, f: -1, s: -1, pu: '', sk: null };
+  D.pu_chips.innerHTML = '';
+  Aud.setMood('belt', 0);
   if (S.boost.shield && !S.run.shield) S.run.shield = true;
   if (S.boost.magnet && !S.run.magnetT) S.run.magnetT = CFG.MAGNET_TIME * S.run.ship.stats.mag;
   S.boost.shield = false; S.boost.magnet = false; renderBoosters();
@@ -2838,7 +3298,7 @@ function endRun(reason) {
 
   const st = S.save.stats;
   const dist = Math.floor(r.dist_m);
-  let isRecord = false, missionMsg = '', dailyMsg = '';
+  let isRecord = false, missionMsg = '', dailyMsg = '', missionNew = false;
   {
   st.total_distance += dist; st.total_coins += r.coins; st.total_dodges += r.dodges; st.total_runs++;
   st.shield_blocks += r.shieldBlocks; st.cans += r.cansCollected; st.powerups += r.powerupsCollected; st.bh_total += r.bhEscaped;
@@ -2874,6 +3334,7 @@ function endRun(reason) {
         const rw = Math.floor(m.reward * (r.trait === 'veteran' ? 1.25 : 1));
         S.save.coins += rw;
         missionMsg = t('mission_done', { n: rw });
+        missionNew = true;
         Aud.win();
       } else if (prog >= m.target) missionMsg = t('mission_completed');
       else missionMsg = t('mission_fail') + ' (' + Math.floor(prog) + '/' + m.target + ')';
@@ -2894,6 +3355,18 @@ function endRun(reason) {
     toast(t('mastery_label') + ' ★' + starsAfter + ' ' + t(shipById(mid).nameKey) + ' +' + rw, 'star');
     Aud.win();
   }
+  // v6: pilot XP + sector record
+  let xp = Math.floor(dist * 0.1) + Math.floor(r.coins * 0.5) + r.dodges + (r.near || 0) * 2;
+  if (missionNew) xp += 50;
+  if (dailyMsg) xp += 40;
+  const p = S.save.pilot;
+  const ff = p.lastXpDate !== todayKey();
+  if (ff) { p.lastXpDate = todayKey(); xp *= 2; }
+  S.overXpBefore = { lvl: p.lvl, pct: p.xp / xpNeed(p.lvl) };
+  grantXp(xp, false);
+  S.overXp = { xp, ff };
+  S.save.stats.best_sector = Math.max(S.save.stats.best_sector || 1, r.sector);
+  if (ff) toast(t('first_flight'), 'star');
   // daily quests
   ensureQuests();
   updateQuests(r);
@@ -2915,6 +3388,21 @@ function endRun(reason) {
   D.over_dist.textContent = t('distance_m', { n: dist });
   D.over_coins.textContent = r.coins;
   D.over_dodges.textContent = r.dodges;
+  /* v6: sector + animated pilot XP bar */
+  D.over_sector.textContent = r.sector;
+  refreshOverXp();
+  {
+    const p2 = S.save.pilot;
+    const lvlChanged = !S.overXpBefore || S.overXpBefore.lvl !== p2.lvl;
+    const before = S.overXpBefore ? S.overXpBefore.pct * 100 : 0;
+    const after = Math.min(100, p2.xp / xpNeed(p2.lvl) * 100);
+    D.over_xp_bar.style.transition = 'none';
+    D.over_xp_bar.style.width = (lvlChanged ? 0 : before).toFixed(1) + '%';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      D.over_xp_bar.style.transition = '';
+      D.over_xp_bar.style.width = after.toFixed(1) + '%';
+    }));
+  }
   D.over_mission.style.display = missionMsg ? 'block' : 'none';
   D.over_mission.textContent = missionMsg;
   const achMsg = newAch.map(a => t('ach_done', { name: t(a.id), n: a.reward })).join('\n');
@@ -3079,6 +3567,14 @@ function chronoUse() {
 function updateRun(dt) {
   const r = S.run;
   r.t += dt;
+  /* v6: sector progression — biome switch, danger finale, calm entry */
+  r.sectorT += dt;
+  if (r.sectorT >= CFG.SECTOR_T) { r.sectorT -= CFG.SECTOR_T; r.sector++; r.dangerShown = false; enterSector(r); }
+  if (!r.dangerShown && r.sectorT >= CFG.SECTOR_T - CFG.DANGER_LAST) {
+    r.dangerShown = true;
+    toast(t('danger_now'), 'flame');
+    Aud.siren();
+  }
   let odMul = 1;
   if (r.od.t > 0) { r.od.t -= dt; odMul = CFG.OD_SPEED; if (r.od.t <= 0) { r.od.heat = (r.trait === 'forsa' || r.trait === 'reaper') ? 0 : CFG.OD_HEAT; } }
   else if (r.od.heat > 0) { r.od.heat -= dt; odMul = 0.8; if (r.od.heat <= 0) r.od.cd = r.trait === 'reaper' ? 6 : CFG.OD_CD; }
@@ -3106,6 +3602,8 @@ function updateRun(dt) {
   if (r.magnetT > 0) r.magnetT -= dt;
   if (r.doubleT > 0) r.doubleT -= dt;
   if (r.invulnT > 0) r.invulnT -= dt;
+  if (r.adrT > 0) r.adrT = Math.max(0, r.adrT - dt);
+  else if (r.adr > 0) r.adr = Math.max(0, r.adr - CFG.ADR_DECAY * dt);
   if (r.comboT > 0) { r.comboT -= dt; if (r.comboT <= 0) r.combo = 0; }
   if (r.trait === 'ghost' || r.trait === 'void') {
     if (r.phaseT > 0) r.phaseT -= dt;
@@ -3144,7 +3642,11 @@ function updateRun(dt) {
     } else { r.storm = 0; r.stormPhase = -1; r.nextStormAt = r.t + 45; }
   }
   const g0 = performance.now();
-  const rows = r.bonusT > 0 ? [] : r.gen.update(r.travelled, r.t, r.speed, L.fieldHcells + 8, r.storm === 1, r.genDensity);
+  /* v6: intra-sector pacing — calm entry, danger finale */
+  let phaseMul = 1;
+  if (r.sectorT < CFG.CALM_FIRST) phaseMul = 0.86;
+  else if (r.sectorT > CFG.SECTOR_T - CFG.DANGER_LAST) phaseMul = 1.14;
+  const rows = r.bonusT > 0 ? [] : r.gen.update(r.travelled, r.t, r.speed, L.fieldHcells + 8, r.storm === 1, r.genDensity * phaseMul);
   const gms = performance.now() - g0;
   if (SD.perf.frames > 180 && gms > SD.perf.genMaxMs) SD.perf.genMaxMs = gms;  // steady-state
   for (const row of rows) spawnFromRow(row);
@@ -3166,6 +3668,15 @@ function updateRun(dt) {
           r.coins += b; S.save.coins += b;
           floatText(L.fieldX + (r.shipX + 0.5) * L.cell, shipY * L.cell - 34, t('near', { n: b }), '#9ef0ff');
           Aud.tone(1250, 0.05, 'square', 0.07);
+          /* v6: near misses charge adrenaline → ×2 coins window */
+          r.adr = Math.min(CFG.ADR_MAX, r.adr + CFG.ADR_GAIN);
+          if (r.adr >= CFG.ADR_MAX && r.adrT <= 0) {
+            r.adrT = CFG.ADR_TIME; r.adr = 0;
+            toast(t('adr_ready'), 'flame');
+            Aud.power();
+            S.flash = Math.max(S.flash, 0.12);
+            particles(L.fieldX + (r.shipX + 0.5) * L.cell, shipY * L.cell, 18, ['#ffd76a', '#fff6c9', '#ff8a50'], 5, 0.7);
+          }
         }
       }
       if (e.kind === 'coin' && !e.taken) { r.coinMissed++; r.combo = 0; }
@@ -3283,6 +3794,11 @@ function updateRun(dt) {
     if (P.length > CFG.PARTICLE_CAP) P.splice(0, P.length - CFG.PARTICLE_CAP);
   }
   Aud.engineSet((r.speed - CFG.SPEED_START) / 10, true);
+  /* v6: adaptive music — biome mood + intensity from sector/OD/storm */
+  {
+    const mi = musicIntensity(r);
+    if (Aud.mood !== r.biome || Aud.inten !== mi) Aud.setMood(r.biome, mi);
+  }
 
   if (S.tut.active) {
     if (S.tut.step === 1 && SD.input.moves > 0) tutStep(2);
@@ -3292,7 +3808,7 @@ function updateRun(dt) {
   if (S.bot) botTick();
 }
 function collectCoin(r, byDrone) {
-  let val = r.ship.stats.coin * (r.doubleT > 0 ? 2 : 1) * (r.od.t > 0 ? 2 : 1);
+  let val = r.ship.stats.coin * (r.doubleT > 0 ? 2 : 1) * (r.od.t > 0 ? 2 : 1) * (r.adrT > 0 ? 2 : 1);
   if (r.trait === 'smuggler') val *= 2;
   if (r.trait === 'magnetolog') val = Math.max(1, Math.floor(val * 0.5));
   val = Math.max(1, Math.round(val));
@@ -3335,6 +3851,8 @@ function updateFx(dt) {
   }
   for (let i = FT.length - 1; i >= 0; i--) { const f = FT[i]; f.t += dt; if (f.t >= f.life) FT.splice(i, 1); }
   if (S.boomFx) { S.boomFx.t += dt; if (S.boomFx.t > 0.42) S.boomFx = null; }
+  if (S.sectorFx) { S.sectorFx.t += dt; if (S.sectorFx.t > 1.9) S.sectorFx = null; }
+  if (S.bgFade > 0) { S.bgFade = Math.max(0, S.bgFade - dt / 0.7); if (S.bgFade === 0) S.bgFrom = -1; }
   if (S.shake > 0) S.shake = Math.max(0, S.shake - dt);
   if (S.flash > 0) S.flash = Math.max(0, S.flash - dt);
   if (S.hitstop > 0) S.hitstop = Math.max(0, S.hitstop - dt);
@@ -3369,7 +3887,7 @@ function botTick() {
 /* ================= INPUT ================= */
 const SDin = { down: false, x0: 0, y0: 0, consumed: false };
 const SD = {
-  version: '2.0.0',
+  version: '6.0.0',
   booted: false,
   input: { swipes: 0, keys: 0, moves: 0, walls: 0, dropped: 0 },
   perf: { frames: 0, fps: 60, maxFrameMs: 0, genMaxMs: 0, entsMax: 0 },
@@ -3518,6 +4036,18 @@ function updateStars(dt) {
     d.y += spd * 1.5 * L.cell * dt * 0.55;
     if (d.y > L.ch + 20) { d.y = -20; d.x = Math.floor(Math.random() * L.cw); }
   }
+  /* v6: menu backdrop slowly cycles through all five biomes (crossfade) */
+  const inRun = (S.screen === 'playing' || S.screen === 'paused' || S.screen === 'gameover') && r;
+  if (!inRun) {
+    S.menuBg.t += dt;
+    if (S.menuBg.t > 11) {
+      S.menuBg.t = 0;
+      S.menuBg.prev = S.menuBg.i;
+      S.menuBg.i = (S.menuBg.i + 1) % BIOMES.length;
+      S.menuBg.fade = 1;
+    }
+    if (S.menuBg.fade > 0) S.menuBg.fade = Math.max(0, S.menuBg.fade - dt / 1.2);
+  }
   S.shootAt -= dt;
   if (!S.shootStar && S.shootAt <= 0) {
     S.shootStar = { x: Math.random() * L.cw, y: -20, vx: 260 + Math.random() * 200, vy: 420 + Math.random() * 240, t: 0 };
@@ -3534,10 +4064,20 @@ function render() {
   g.setTransform(L.dpr, 0, 0, L.dpr, 0, 0);
   g.imageSmoothingEnabled = false;
   g.clearRect(0, 0, L.cw, L.ch);
-  if (L.bg) g.drawImage(L.bg, 0, 0);
-  if (L.deep) { const oy = Math.floor(deepOff); g.drawImage(L.deep, 0, oy); g.drawImage(L.deep, 0, oy - L.ch); }
+  /* v6: active biome backdrop (run = sector biome, menu = cycling showcase)
+     with a crossfade from the outgoing set so sector warps read as travel. */
+  const inRunNow = (S.screen === 'playing' || S.screen === 'paused' || S.screen === 'gameover') && S.run;
+  const rBi = inRunNow ? (S.run.biomeI || 0) : S.menuBg.i;
+  const bset = bgSet(rBi);
+  let fadeFrom = -1, fadeA = 0;
+  if (inRunNow) {
+    if (S.bgFade > 0 && S.bgFrom >= 0 && S.bgFrom !== rBi) { fadeFrom = S.bgFrom; fadeA = S.bgFade; }
+  } else if (S.menuBg.fade > 0 && S.menuBg.prev !== S.menuBg.i) { fadeFrom = S.menuBg.prev; fadeA = S.menuBg.fade; }
+  drawBgSetFull(g, bset, 1);
+  if (fadeFrom >= 0) drawBgSetFull(g, bgSet(fadeFrom), fadeA);
+  const B = bset.b;
   for (const d of dust) {
-    g.fillStyle = d.a ? 'rgba(190,215,255,.20)' : 'rgba(190,215,255,.12)';
+    g.fillStyle = d.a ? 'rgba(' + B.dust + ',.20)' : 'rgba(' + B.dust + ',.12)';
     g.fillRect(d.x, Math.floor(d.y), 1, 3);
   }
   if (S.shootStar) {
@@ -3552,19 +4092,19 @@ function render() {
   }
   g.save(); g.translate(ox, oy2);
   const fx = L.fieldX, fw = L.fieldW, cell = L.cell;
-  if (L.rail) g.drawImage(L.rail, fx - 8, 0);
-  if (L.pulse) {
+  if (bset.rail) g.drawImage(bset.rail, fx - 8, 0);
+  if (bset.pulse) {
     const gap = 240;
     for (let k = 0; k < 2; k++) {
       const ex = fx + (k ? fw - 4 : 0);
-      for (let py = (pulseT * 260) % gap - gap; py < L.ch; py += gap) g.drawImage(L.pulse, Math.floor(ex) + 1, Math.floor(py));
+      for (let py = (pulseT * 260) % gap - gap; py < L.ch; py += gap) g.drawImage(bset.pulse, Math.floor(ex) + 1, Math.floor(py));
     }
   }
   const r = S.run;
-  const playing = (S.screen === 'playing' || S.screen === 'paused' || S.screen === 'gameover') && r;
+  const playing = inRunNow && r;
   if (playing) {
     const off = Math.floor((r.travelled * cell) % 30);
-    g.fillStyle = '#1c2547';
+    g.fillStyle = B.line;
     for (let i = 1; i < 3; i++) for (let y = -off; y < L.ch; y += 30) g.fillRect(fx + Math.floor(i * cell) - 1, y, 2, 12);
     if (r.storm > 0) {
       g.fillStyle = 'rgba(255,64,48,' + (0.05 + 0.04 * Math.sin(r.t * 10)).toFixed(3) + ')';
@@ -3577,6 +4117,25 @@ function render() {
     if (r.od.t > 0) {
       g.fillStyle = 'rgba(255,190,70,.06)';
       g.fillRect(fx - 8, 0, fw + 16, L.ch);
+    }
+    /* v6: danger-phase edge pulse (sector finale) */
+    if (S.screen === 'playing' && r.dangerShown && r.sectorT >= CFG.SECTOR_T - CFG.DANGER_LAST) {
+      const da = 0.07 + 0.05 * Math.sin(r.t * 8);
+      g.fillStyle = 'rgba(224,80,60,' + da.toFixed(3) + ')';
+      g.fillRect(fx - 8, 0, 9, L.ch);
+      g.fillRect(fx + fw - 1, 0, 9, L.ch);
+    }
+    /* v6: adrenaline meter — near misses charge it, full = ×2 coins window */
+    if (S.screen === 'playing') {
+      const th = Math.round(L.ch * 0.26), tx = fx - 7, ty = Math.round(L.ch * 0.6);
+      g.fillStyle = 'rgba(10,13,32,.5)';
+      g.fillRect(tx, ty, 4, th);
+      const frac = r.adrT > 0 ? 1 : r.adr / CFG.ADR_MAX;
+      const fh = Math.max(0, Math.round(th * frac));
+      if (fh > 0) {
+        g.fillStyle = r.adrT > 0 && Math.floor(r.t * 8) % 2 ? '#fff6c9' : '#ffd76a';
+        g.fillRect(tx, ty + th - fh, 4, fh);
+      }
     }
     if (r.speed > 9) {
       g.fillStyle = 'rgba(200,225,255,.28)';
@@ -3594,7 +4153,7 @@ function render() {
         const y = (r.travelled - e.dist) * cell;
         if (y < -cell * 9 || y >= -cell * 1.8) continue;
         const x = fx + (e.x + 0.5) * cell;
-        const sp = baked('ast' + (e.astI || 0), LOW.ast[e.astI || 0]);
+        const sp = baked('ast' + (e.astI || 0) + '@' + rBi, LOW.astB[rBi][e.astI || 0]);
         g.drawImage(sp, Math.floor(x - sp.width / 2), Math.floor(y - sp.height / 2));
       }
       g.globalAlpha = 1;
@@ -3605,7 +4164,7 @@ function render() {
       const x = fx + (e.x + 0.5) * cell;
       if (e.kind === 'obs') {
         if (e.type === 'asteroid') {
-          const sp = baked('ast' + e.astI, LOW.ast[e.astI]);
+          const sp = baked('ast' + e.astI + '@' + rBi, LOW.astB[rBi][e.astI]);
           g.drawImage(sp, Math.floor(x - sp.width / 2), Math.floor(y - sp.height / 2));
         } else if (e.type === 'pillar') {
           const sp = baked('pillar', LOW.pillar);
@@ -3692,6 +4251,41 @@ function render() {
   }
   g.globalAlpha = 1;
   g.restore();
+  /* v6: sector banner + warp streaks on biome switch */
+  if (S.sectorFx && (playing || S.screen === 'gameover')) {
+    const f = S.sectorFx;
+    const a = f.t < 0.18 ? f.t / 0.18 : (f.t > 1.4 ? Math.max(0, (1.9 - f.t) / 0.5) : 1);
+    if (f.t < 0.55) {
+      g.globalAlpha = Math.max(0, (0.55 - f.t) * 1.4);
+      g.strokeStyle = '#ffffff'; g.lineWidth = 2;
+      const cx = L.cw / 2, cy = L.ch * 0.42;
+      for (let i = 0; i < 16; i++) {
+        const ang = i / 16 * 6.283 + 0.2;
+        const rr1 = 60 + f.t * 1400, rr2 = rr1 + 90 + f.t * 800;
+        g.beginPath();
+        g.moveTo(cx + Math.cos(ang) * rr1, cy + Math.sin(ang) * rr1 * 0.7);
+        g.lineTo(cx + Math.cos(ang) * rr2, cy + Math.sin(ang) * rr2 * 0.7);
+        g.stroke();
+      }
+      g.globalAlpha = 1;
+    }
+    if (a > 0.01) {
+      g.globalAlpha = Math.min(1, a);
+      g.textAlign = 'center';
+      const fsz = Math.max(20, Math.min(38, L.cw * 0.085));
+      g.font = '900 ' + Math.round(fsz) + 'px system-ui, sans-serif';
+      g.lineWidth = 6; g.strokeStyle = '#0a0d20';
+      g.strokeText(t('sector_banner', { n: f.n }), L.cw / 2, L.ch * 0.3);
+      g.fillStyle = f.col || '#9ef0ff';
+      g.fillText(t('sector_banner', { n: f.n }), L.cw / 2, L.ch * 0.3);
+      g.font = '800 ' + Math.round(fsz * 0.5) + 'px system-ui, sans-serif';
+      g.lineWidth = 4;
+      g.strokeText(f.name, L.cw / 2, L.ch * 0.3 + fsz * 0.95);
+      g.fillStyle = '#e8eef7';
+      g.fillText(f.name, L.cw / 2, L.ch * 0.3 + fsz * 0.95);
+      g.globalAlpha = 1;
+    }
+  }
   if (S.flash > 0) { g.fillStyle = 'rgba(220,240,255,' + (S.flash * 1.1).toFixed(3) + ')'; g.fillRect(0, 0, L.cw, L.ch); }
   if (playing && r.fuel < 25 && S.screen === 'playing') {
     const a = 0.10 + Math.sin(performance.now() / 200) * 0.06;
@@ -3708,7 +4302,7 @@ function updateHud() {
   const dm = Math.floor(r.dist_m);
   if (dm !== hudCache.d) { D.hud_dist.textContent = t('distance_m', { n: dm }); hudCache.d = dm; }
   if (r.coins !== hudCache.c) { D.hud_coins.innerHTML = pixIconSVG('coin', 14) + ' ' + r.coins; hudCache.c = r.coins; }
-  const fp = Math.round(r.fuel / r.fuelCap * 100);
+  const fp = clamp(Math.round(r.fuel / r.fuelCap * 100), 0, 100);
   if (fp !== hudCache.f) {
     D.hud_fuel.style.width = fp + '%';
     D.hud_fuel.classList.toggle('low', r.fuel < 25);
@@ -3717,6 +4311,11 @@ function updateHud() {
   const sp = Math.round((Math.min(CFG.SPEED_MAX, r.speed) - CFG.SPEED_START) / (CFG.SPEED_MAX - CFG.SPEED_START) * 100);
   if (sp !== hudCache.s) { D.hud_speed.style.width = sp + '%'; hudCache.s = sp; }
   let pu = '';
+  /* v6: sector chip (biome + danger phase) and adrenaline window */
+  const dangerNow = r.sectorT >= CFG.SECTOR_T - CFG.DANGER_LAST;
+  pu += '<span class="pu-chip sector' + (dangerNow ? ' danger' : '') + '">' + pixIconSVG('star', 12) + ' ' +
+    t('sector_chip', { n: r.sector }) + ' · ' + esc(t('biome_' + r.biome)) + '</span>';
+  if (r.adrT > 0) pu += '<span class="pu-chip adr">' + pixIconSVG('flame', 12) + ' ' + t('adr_chip') + ' ' + Math.ceil(r.adrT) + 's</span>';
   if (r.shield) pu += '<span class="pu-chip shield">' + pixIconSVG('shield', 12) + ' ' + t('pu_shield') + '</span>';
   if (r.magnetT > 0) pu += '<span class="pu-chip magnet">' + pixIconSVG('magnet', 12) + ' ' + Math.ceil(r.magnetT) + 's</span>';
   if (r.doubleT > 0) pu += '<span class="pu-chip double">' + pixIconSVG('star', 12) + ' ×2 ' + Math.ceil(r.doubleT) + 's</span>';
@@ -3786,6 +4385,13 @@ function syncCoinsUI() {
 function renderMenu() {
   const b = S.save.best_distances;
   D.menu_best.textContent = t('best', { n: Math.max(b.endless, b.mission, b.daily) });
+  /* v6: pilot rank + XP progress in the menu */
+  const p = S.save.pilot;
+  if (D.menu_rank_txt) {
+    D.menu_rank_txt.innerHTML = pixIconSVG('trophy', 13) + ' ' +
+      esc(t('rank_pill', { n: p.lvl, title: t(rankTitleKey(p.lvl)) }));
+    D.menu_rank_bar.style.width = Math.min(100, Math.round(p.xp / xpNeed(p.lvl) * 100)) + '%';
+  }
   renderBoosters();
   renderQuests();
   renderWeekly();
@@ -4022,6 +4628,7 @@ function applyLang() {
   if (S.screen === 'gameover' && S.run) {
     D.btn_cont_ad.textContent = t('continue_ad');
     D.btn_double.textContent = t('double_ad') + ' (+' + S.run.coins + ')';
+    refreshOverXp();
   }
 }
 function switchLang(l) {
@@ -4251,7 +4858,7 @@ async function boot() {
   bindUI();
   const a = await Platform.init();
   S.adapter = a;
-  try { S.adsReal = (a.name !== 'local') || new URLSearchParams(location.search).has('adsmock'); } catch (e) { S.adsReal = a.name !== 'local'; }
+  S.adsReal = true;   // real platform inventory or house-ads slot
   bindPlatformEvents(a);
   try {
     const cloud = await Promise.race([
@@ -4317,6 +4924,13 @@ window.__SD = {
       trait: r ? r.trait : '', bombs: r ? r.bombs : 0, od: r ? Object.assign({}, r.od) : null,
       slowT: r ? r.slowT : 0, phaseT: r ? r.phaseT : 0, bonusT: r ? r.bonusT : 0,
       stars: r ? r.stars : 0,
+      /* v6 */
+      sector: r ? r.sector : 0, biome: r ? r.biome : '', biomeI: r ? r.biomeI : -1,
+      sectorT: r ? r.sectorT : 0, adr: r ? r.adr : 0, adrT: r ? r.adrT : 0,
+      danger: r ? r.sectorT >= CFG.SECTOR_T - CFG.DANGER_LAST : false,
+      xp: S.save ? S.save.pilot.xp : 0, lvl: S.save ? S.save.pilot.lvl : 0,
+      bestSector: S.save ? (S.save.stats.best_sector || 1) : 1,
+      mood: Aud.mood, inten: Aud.inten, banner: !!S.sectorFx,
       quests: S.save && S.save.quests ? S.save.quests.list.map(q => Object.assign({}, q)) : [],
       questStreak: S.save ? Object.assign({}, S.save.questStreak) : null,
       weekly: S.save ? (S.save.weekly || []).slice(0, 5) : [],
@@ -4357,6 +4971,19 @@ window.__SD = {
   },
   setFuel(v) { if (S.run) S.run.fuel = v; },
   setFuelDrain(v) { if (S.run) S.run.fuelDrain = v; },
+  /* v6 QA hooks */
+  setSectorTime(v) { if (S.run) S.run.sectorT = v; },
+  setRunTime(v) { if (S.run) S.run.t = v; },
+  pilotInfo() { const p = S.save.pilot; return { xp: p.xp, lvl: p.lvl, need: xpNeed(p.lvl), title: rankTitleKey(p.lvl), lastXpDate: p.lastXpDate }; },
+  astSample(bi) {
+    const idx = ((bi || 0) % BIOMES.length + BIOMES.length) % BIOMES.length;
+    const arr = LOW.astB && LOW.astB[idx];
+    if (!arr || !arr[0]) return '';
+    const c = arr[0], g2 = c.getContext('2d');
+    const d = g2.getImageData(0, 0, c.width, c.height).data;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 200) return d[i - 3] + ',' + d[i - 2] + ',' + d[i - 1];
+    return '';
+  },
   grantAll() {
     S.save.coins += 100000;
     for (const s of SHIPS) if (S.save.ships_unlocked.indexOf(s.id) === -1) S.save.ships_unlocked.push(s.id);
