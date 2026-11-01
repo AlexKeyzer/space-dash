@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -149,6 +150,14 @@
   .ostats { display:flex; gap:15px; color:#cfe0ff; font-weight:800; font-size:13.5px; flex-wrap:wrap; justify-content:center; }
   .ostats b { color:#fff; }
   .omsg { color:#58d68d; font-weight:800; font-size:13.5px; text-align:center; }
+  .omsg.gold { color:#ffd76a; }
+  .omsg.info { color:#8fa3d9; font-weight:700; font-size:12px; }
+  #btn-upg.canbuy::after { content:''; position:absolute; top:-5px; right:-5px; width:11px; height:11px;
+    background:#58d68d; border:2px solid #0a0d20; border-radius:50%; animation:blink .8s steps(2) infinite; }
+  .upip { display:inline-block; width:9px; height:9px; margin-right:3px; background:#0a0d20; border:1px solid #2e3a6e; }
+  .upip.on { background:#ffd76a; border-color:#8a5d00; }
+  .card.maxed { border-color:#7a4a26; }
+  .card .upips { margin-top:6px; }
   #over-ach { white-space:pre-line; line-height:1.5; }
   #over-record { color:#ffd76a; font-size:16px; letter-spacing:1px; animation:blink .8s steps(2) 3; }
 
@@ -215,6 +224,8 @@
   .pu-chip.sector { color:#9ef0ff; border-color:#2e4a6e; }
   .pu-chip.sector.danger { color:#ff6b5e; border-color:#7a2620; animation:blink .6s steps(2) infinite; }
   .pu-chip.adr { color:#ffd76a; border-color:#7a4a26; animation:blink .5s steps(2) infinite; }
+  .pu-chip.mile { color:#7edcff; border-color:#2e4a6e; }
+  .pu-chip.dodge { color:#58d68d; border-color:#2f7a52; }
   #over-xp { width:100%; display:flex; flex-direction:column; gap:4px; align-items:center; }
   #over-xp-title { font-size:12.5px; font-weight:900; color:#cfe0ff; letter-spacing:.5px; text-align:center; }
   #over-xp .xpbar { width:100%; max-width:280px; height:9px; background:#0a0d20; border:2px solid #2e3a6e; }
@@ -293,6 +304,7 @@
           </div>
         </div>
       </div>
+      <button id="btn-upg" class="btn gold" data-i18n="upgrades">УЛУЧШЕНИЯ</button>
       <div class="card qcard" style="width:100%;max-width:340px"><div class="cbody" id="quests-box"></div></div>
       <div class="card qcard" style="width:100%;max-width:340px"><div class="cbody" id="weekly-box"></div></div>
       <div class="row">
@@ -305,6 +317,16 @@
         <button id="btn-set" class="btn gray" style="flex:0 0 52px" aria-label="settings"></button>
       </div>
     </div>
+  </div>
+
+  <!-- UPGRADES -->
+  <div id="scr-upg" class="screen">
+    <div class="backtop">
+      <button class="btn small gray" data-back="menu">◀</button>
+      <div class="h2" data-i18n="upgrades">УЛУЧШЕНИЯ</div>
+      <div class="coins-pill"><span class="ic"></span><span class="mc-coins">0</span></div>
+    </div>
+    <div class="list" id="upg-list"></div>
   </div>
 
   <!-- MISSIONS -->
@@ -422,6 +444,8 @@
     <div class="obox">
       <div class="otitle" id="over-title"></div>
       <div id="over-record" class="omsg" style="display:none" data-i18n="new_record">НОВЫЙ РЕКОРД!</div>
+      <div id="over-near" class="omsg" style="display:none"></div>
+      <div id="over-chest" class="omsg info" style="display:none"></div>
       <div class="ostats">
         <span><span data-i18n="run_distance">Дистанция</span>: <b id="over-dist">0</b></span>
         <span><i data-ic="coin" data-ic-size="13"></i> <b id="over-coins">0</b></span>
@@ -531,7 +555,7 @@ const I18N = {
     buy: 'Купить за {n}', locked_ach: 'Нужно достижение: {name}',
     ad_unlock_1d: '▶ Аренда на 1 день', rented: 'В аренде до конца дня',
     sound: 'Звук', music: 'Музыка', language: 'Язык', on: 'ВКЛ', off: 'ВЫКЛ',
-    ach_title: 'Достижения ({n}/25)', ach_reward: '+{n} монет',
+    ach_title: 'Достижения ({n}/27)', ach_reward: '+{n} монет',
     pu_shield: 'Щит', pu_magnet: 'Магнит', pu_double: 'Очки ×2', pu_fuel: 'Топливо',
     booster_shield: 'Стартовый щит', booster_magnet: 'Стартовый магнит',
     booster_cost: '{n} монет', booster_ad: '▶ или реклама',
@@ -669,6 +693,28 @@ const I18N = {
     first_flight: 'Первый вылет дня: опыт ×2!',
     hint_title: 'До звания «{title}»: {n} ур.', hint_chest: 'Сундук серии — через {n} дн.',
     hint_lvl: 'До уровня {n}: {xp} опыта',
+    // v7: игровой цикл — вехи, серии уворотов, контейнеры, модули, сундук забегов
+    upgrades: 'УЛУЧШЕНИЯ',
+    upg_lvl: '{n}/{m}', upg_max: 'МАКС', upg_now: 'сейчас: {a}',
+    upg_bought: 'Модуль «{name}» улучшен!',
+    upg_fuel: 'Доп. бак', upg_fueld: '+{a} топлива на старте забега',
+    upg_magnet: 'Магнитная катушка', upg_magnetd: '+{a}% к длительности магнита',
+    upg_coin: 'Сканер руды', upg_coind: '+{a}% к ценности каждой монеты',
+    upg_xp: 'Бортовой журнал', upg_xpd: '+{a}% к опыту пилота',
+    upg_shield: 'Аварийный щит', upg_shieldd: '{a}% шанс начать забег со щитом',
+    upg_combo: 'Комбо-модуль', upg_combod: '+{a} монет к каждому комбо-бонусу',
+    mile_chip: 'Веха {n} м: +{c}',
+    mile_hit: 'ВЕХА {n} м! +{c} монет',
+    mile_big: 'ВЕХА {n} м! +{c} монет и {bonus}!',
+    dodge_ft: 'Увороты ×{n} +{c}', dodge_chip: 'Серия уворотов ×{n}',
+    crate_coins: 'Контейнер: +{n} монет!', crate_fuel: 'Контейнер: +{n} топлива!',
+    crate_shield: 'Контейнер: аварийный щит!', crate_magnet: 'Контейнер: магнит {n} с!',
+    crate_double: 'Контейнер: монеты ×2 на {n} с!', crate_xp: 'Контейнер: +{n} опыта!',
+    run_chest_prog: 'Сундук за {m} забега: {n}/{m}',
+    run_chest_open: 'СУНДУК ЗА {m} ЗАБЕГА: +{c} монет, +{x} опыта!',
+    record_close: 'До рекорда всего {n} м — ещё попытка!',
+    a_crate10: 'Грузоперевозчик', a_crate10d: 'Собери 10 контейнеров всего',
+    a_upg5: 'Инженер', a_upg5d: 'Купи 5 уровней модулей',
   },
   en: {
     app_name: 'Space Dash',
@@ -700,7 +746,7 @@ const I18N = {
     buy: 'Buy for {n}', locked_ach: 'Requires achievement: {name}',
     ad_unlock_1d: '▶ Rent for 1 day', rented: 'Rented until end of day',
     sound: 'Sound', music: 'Music', language: 'Language', on: 'ON', off: 'OFF',
-    ach_title: 'Achievements ({n}/25)', ach_reward: '+{n} coins',
+    ach_title: 'Achievements ({n}/27)', ach_reward: '+{n} coins',
     pu_shield: 'Shield', pu_magnet: 'Magnet', pu_double: 'Score ×2', pu_fuel: 'Fuel',
     booster_shield: 'Start shield', booster_magnet: 'Start magnet',
     booster_cost: '{n} coins', booster_ad: '▶ or watch ad',
@@ -832,6 +878,28 @@ const I18N = {
     first_flight: 'First flight of the day: XP ×2!',
     hint_title: 'Next rank «{title}» in {n} lv.', hint_chest: 'Streak chest in {n} d.',
     hint_lvl: 'To level {n}: {xp} XP',
+    // v7: game loop — milestones, dodge streaks, crates, modules, run chest
+    upgrades: 'UPGRADES',
+    upg_lvl: '{n}/{m}', upg_max: 'MAX', upg_now: 'now: {a}',
+    upg_bought: 'Module «{name}» upgraded!',
+    upg_fuel: 'Auxiliary tank', upg_fueld: '+{a} fuel at run start',
+    upg_magnet: 'Magnetic coil', upg_magnetd: '+{a}% magnet duration',
+    upg_coin: 'Ore scanner', upg_coind: '+{a}% value of every coin',
+    upg_xp: 'Flight log', upg_xpd: '+{a}% pilot XP',
+    upg_shield: 'Emergency shield', upg_shieldd: '{a}% chance to start with a shield',
+    upg_combo: 'Combo module', upg_combod: '+{a} coins to every combo bonus',
+    mile_chip: 'Milestone {n} m: +{c}',
+    mile_hit: 'MILESTONE {n} m! +{c} coins',
+    mile_big: 'MILESTONE {n} m! +{c} coins and {bonus}!',
+    dodge_ft: 'Dodges ×{n} +{c}', dodge_chip: 'Dodge streak ×{n}',
+    crate_coins: 'Container: +{n} coins!', crate_fuel: 'Container: +{n} fuel!',
+    crate_shield: 'Container: emergency shield!', crate_magnet: 'Container: magnet {n} s!',
+    crate_double: 'Container: coins ×2 for {n} s!', crate_xp: 'Container: +{n} XP!',
+    run_chest_prog: 'Chest per {m} runs: {n}/{m}',
+    run_chest_open: 'CHEST FOR {m} RUNS: +{c} coins, +{x} XP!',
+    record_close: 'Only {n} m to the record — try again!',
+    a_crate10: 'Cargo Carrier', a_crate10d: 'Collect 10 containers total',
+    a_upg5: 'Engineer', a_upg5d: 'Buy 5 module levels',
   },
 };
 
@@ -1658,6 +1726,20 @@ const PIX_TRADER = [
   '.....EeEe......',
   '...............',
   '...............'];
+/* v7: supply crate pickup */
+const PIX_CRATE = [
+  '..KKKKKKKK..',
+  '.KYYYYYYYYK.',
+  'KYKKYYYYKKYK',
+  'KYKYYYYYYKYK',
+  'KYYYKWWKYYYK',
+  'KYYYKWWKYYYK',
+  'KYKYYYYYYKYK',
+  'KYKKYYYYKKYK',
+  '.KYYYYYYYYK.',
+  '..KKKKKKKK..',
+  '...KK..KK...',
+  '............'];
 const PIX_DRONE = [
   '.KK....KK.',
   'KeeK..KeeK',
@@ -1759,6 +1841,7 @@ function buildPixelSprites(SPR) {
   SPR.px_boost = PIX_BOOST;
   SPR.px_portal = PIX_PORTAL;
   SPR.px_trader = PIX_TRADER;
+  SPR.px_crate = PIX_CRATE;
   SPR.px_drone = PIX_DRONE;
   Object.assign(SPR.px_icon, PIX_ICON2);
   SPR.shipPal = shipPal;
@@ -1832,6 +1915,7 @@ class Generator {
     this.puAt = 50;
     this.gateAt = 55;
     this.evAt = 70;
+    this.crateAt = 30 + this.rnd() * 18;   /* v7: supply crate — instant random reward */
     this.evKind = 0;
     this.density = opts.density || 1;
     this.rows = [];
@@ -1974,6 +2058,10 @@ class Generator {
     if (t >= this.canAt) {
       this.canAt = t + 25 + rnd() * 10;
       if (pickLane.length) items.push({ type: 'fuel', lane: rl(), d: dist + 2.1 });
+    }
+    if (t >= this.crateAt) {
+      this.crateAt = t + 55 + rnd() * 30;
+      if (pickLane.length) items.push({ type: 'crate', lane: rl(), d: dist + 4.6 });
     }
     if (t >= this.puAt) {
       this.puAt = t + 45 + rnd() * 25;
@@ -2505,6 +2593,11 @@ const CFG = {
   XP_SECTOR_BASE: 20, XP_SECTOR_STEP: 5,
   /* v6: adrenaline (near-miss risk/reward) */
   ADR_MAX: 100, ADR_GAIN: 14, ADR_DECAY: 7, ADR_TIME: 4,
+  /* v7: game loop — milestones, dodge streak, run chest */
+  MILE_FIRST: 100, MILE_STEP: 250, MILE_COIN_BASE: 20, MILE_COIN_STEP: 10, MILE_COIN_CAP: 120,
+  MILE_XP_BASE: 10, MILE_XP_STEP: 5,
+  DODGE_CHAIN: 5, DODGE_CHAIN_COIN: 3,
+  CHEST_RUNS: 3, CHEST_RUN_XP: 50,
 };
 
 /* ================= BIOMES (v6) =================
@@ -2577,6 +2670,27 @@ function xpNeed(l) { return 100 + (Math.max(1, l) - 1) * 60; }
 function rankTitleKey(l) { let k = 'rank1'; for (const r of RANKS) if (l >= r[0]) k = r[1]; return k; }
 function nextRankLvl(l) { for (const r of RANKS) if (r[0] > l) return r[0]; return 0; }
 
+/* ================= MODULE UPGRADES (v7) =================
+ * Permanent coin sink closing the meta-loop: run → coins →
+ * module → stronger next run. Every module is felt immediately. */
+const UPG_DEFS = [
+  { id: 'fuel',   icon: 'fuel',   max: 5, cost: [120, 240, 480, 850, 1400], step: 8 },
+  { id: 'magnet', icon: 'magnet', max: 5, cost: [120, 240, 480, 850, 1400], step: 20 },
+  { id: 'coin',   icon: 'coin',   max: 5, cost: [150, 300, 600, 1050, 1750], step: 10 },
+  { id: 'xp',     icon: 'quest',  max: 5, cost: [150, 300, 600, 1050, 1750], step: 15 },
+  { id: 'shield', icon: 'shield', max: 4, cost: [200, 400, 750, 1300], vals: [10, 20, 35, 50] },
+  { id: 'combo',  icon: 'flame',  max: 4, cost: [150, 320, 620, 1100], step: 5 },
+];
+function upgDef(id) { for (const d of UPG_DEFS) if (d.id === id) return d; return null; }
+function upgLvl(id) { return (S.save && S.save.upgrades && S.save.upgrades[id]) || 0; }
+function upgVal(def) { const l = upgLvl(def.id); return def.vals ? (l ? def.vals[l - 1] : 0) : def.step * l; }
+function upgNext(def) { const l = upgLvl(def.id); if (l >= def.max) return 0; return def.vals ? def.vals[l] : def.step * (l + 1); }
+function upgCost(def) { const l = upgLvl(def.id); return l >= def.max ? 0 : def.cost[l]; }
+function upgTotal() { let n = 0; for (const d of UPG_DEFS) n += upgLvl(d.id); return n; }
+function magnetTime(r) { return CFG.MAGNET_TIME * (r && r.ship ? r.ship.stats.mag : 1) * (1 + 0.2 * upgLvl('magnet')); }
+function coinValueMul() { return 1 + 0.1 * upgLvl('coin'); }
+function comboBonus() { return CFG.COMBO_BONUS + 5 * upgLvl('combo'); }
+
 /* ================= UTILS ================= */
 const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -2641,6 +2755,9 @@ const ACHS = [
   { id: 'a_perfect',reward: 300, chk: s => s.stats.best_perfect >= 50 },
   { id: 'a_runs100',reward: 300, chk: s => s.stats.total_runs >= 100 },
   { id: 'a_bh20',   reward: 250, chk: s => s.stats.bh_total >= 20 },
+  /* v7 */
+  { id: 'a_crate10', reward: 150, chk: s => (s.stats.crates || 0) >= 10 },
+  { id: 'a_upg5',    reward: 200, chk: s => { let n = 0; for (const k in (s.upgrades || {})) n += s.upgrades[k] || 0; return n >= 5; } },
 ];
 const DAILY_MODS = ['normal', 'storm', 'rain', 'clean', 'fast', 'marathon'];
 
@@ -2658,7 +2775,8 @@ function defaultSave() {
     achievements: [],
     daily: { streak: 0, best_streak: 0, last_date: '', rewarded_date: '', best: 0, best_date: '' },
     stats: { total_distance: 0, total_coins: 0, total_dodges: 0, total_runs: 0, best_distance: 0,
-             best_nodmg: 0, best_perfect: 0, shield_blocks: 0, cans: 0, powerups: 0, bh_total: 0, best_sector: 1 },
+             best_nodmg: 0, best_perfect: 0, shield_blocks: 0, cans: 0, powerups: 0, bh_total: 0, best_sector: 1,
+             crates: 0, miles: 0 },
     settings: { sound: true, music: true, lang: null },
     tutorial_done: false,
     mastery: {},
@@ -2668,6 +2786,8 @@ function defaultSave() {
     lastSeen: '',
     weekly: [],
     ad_progress: {},
+    upgrades: {},
+    runChest: { prog: 0 },
   };
 }
 function sanitizeSave(o) {
@@ -2685,6 +2805,9 @@ function sanitizeSave(o) {
   if (!s.mastery || typeof s.mastery !== 'object') s.mastery = {};
   if (!Array.isArray(s.weekly)) s.weekly = [];
   if (!s.ad_progress || typeof s.ad_progress !== 'object') s.ad_progress = {};
+  if (!s.upgrades || typeof s.upgrades !== 'object') s.upgrades = {};
+  s.runChest = Object.assign({ prog: 0 }, o.runChest || {});
+  if (!(typeof s.runChest.prog === 'number' && s.runChest.prog >= 0)) s.runChest.prog = 0;
   s.questStreak = Object.assign({ days: 0, last: '', chests: [] }, o.questStreak || {});
   if (!Array.isArray(s.questStreak.chests)) s.questStreak.chests = [];
   s.pilot = Object.assign({ xp: 0, lvl: 1, lastXpDate: '' }, o.pilot || {});
@@ -2720,12 +2843,14 @@ function mergeSave(cloud, local) {
   s.missions_completed = uni(c.missions_completed, s.missions_completed);
   s.achievements = uni(c.achievements, s.achievements);
   for (const k in c.mission_best) s.mission_best[k] = Math.max(c.mission_best[k] || 0, s.mission_best[k] || 0);
+  for (const k in (c.upgrades || {})) s.upgrades[k] = Math.max(c.upgrades[k] || 0, s.upgrades[k] || 0);
+  s.runChest.prog = Math.max((c.runChest && c.runChest.prog) || 0, s.runChest.prog || 0);
   s.daily.streak = Math.max(c.daily.streak, s.daily.streak);
   s.daily.best_streak = Math.max(c.daily.best_streak, s.daily.best_streak);
   s.daily.best = Math.max(c.daily.best, s.daily.best);
   if ((c.daily.last_date || '') > (s.daily.last_date || '')) { s.daily.last_date = c.daily.last_date; s.daily.rewarded_date = c.daily.rewarded_date; }
   const st = s.stats, cs = c.stats;
-  for (const k of ['total_distance','total_coins','total_dodges','total_runs','best_distance','best_nodmg','best_perfect','shield_blocks','cans','powerups','bh_total','best_sector'])
+  for (const k of ['total_distance','total_coins','total_dodges','total_runs','best_distance','best_nodmg','best_perfect','shield_blocks','cans','powerups','bh_total','best_sector','crates','miles'])
     st[k] = Math.max(cs[k] || 0, st[k] || 0);
   if (!st.best_sector || st.best_sector < 1) st.best_sector = 1;
   s.tutorial_done = s.tutorial_done || c.tutorial_done;
@@ -2880,6 +3005,11 @@ const Aud = {
     if (!this.sfxOk()) return;
     [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.tone(f, 0.09, 'square', 0.08), i * 65));
   },
+  milestone(big) {
+    if (!this.sfxOk()) return;
+    this.tone(659, 0.08, 'triangle', 0.14);
+    setTimeout(() => this.tone(big ? 1318 : 988, 0.13, 'triangle', 0.16), 90);
+  },
   musicStop() { if (this.musicTimer) { clearInterval(this.musicTimer); this.musicTimer = 0; } },
 };
 
@@ -2925,6 +3055,7 @@ function buildSprites() {
   LOW.boost = pixCanvas(SPR.px_boost, { K: '#12172b', W: '#ffffff', G: '#7edcff' });
   LOW.portal = pixCanvas(SPR.px_portal, { K: '#12172b', P: '#a06bff', W: '#ffffff' });
   LOW.trader = pixCanvas(SPR.px_trader, { K: '#12172b', C: '#4a5578', W: '#e8eef7', Y: '#ffd76a', E: '#232a38', e: '#8fd8ff' });
+  LOW.crate = pixCanvas(SPR.px_crate, { K: '#12172b', Y: '#ffd76a', W: '#fff6c9' });
   LOW.drone = pixCanvas(SPR.px_drone, { K: '#12172b', e: '#8fd8ff', C: '#4a5578' });
 }
 function bakeAll() {
@@ -2936,7 +3067,7 @@ function bakeAll() {
   if (LOW.astB) LOW.astB.forEach((arr, bi) => arr.forEach((low, i) => baked('ast' + i + '@' + bi, low)));
   baked('deb', LOW.debris);
   LOW.coin.forEach((low, i) => baked('coin' + i, low));
-  ['fuel', 'shield', 'magnet', 'double', 'boost', 'portal', 'trader'].forEach(k => baked('it' + k, LOW[k]));
+  ['fuel', 'shield', 'magnet', 'double', 'boost', 'portal', 'trader', 'crate'].forEach(k => baked('it' + k, LOW[k]));
   LOW.flame.forEach((low, i) => baked('flame' + i, low));
   LOW.boom.forEach((low, i) => baked('boom' + i, low, 2));
   LOW.hole.forEach((low, i) => baked('hole' + i, low, 2));
@@ -2975,6 +3106,7 @@ function cacheDom() {
     'over-sector', 'over-xp', 'over-xp-title', 'over-xp-bar', 'over-xp-delta', 'over-hint',
     'menu-rank', 'menu-rank-txt', 'menu-rank-bar',
     'btn-cont-ad', 'btn-cont-coins', 'btn-double', 'btn-retry', 'btn-over-menu',
+    'scr-upg', 'upg-list', 'btn-upg', 'over-chest', 'over-near',
     'tut-text', 'btn-tut-skip', 'tut-hand'];
   for (const id of ids) D[id.replace(/-/g, '_')] = document.getElementById(id);
   D.cv_ctx = D.cv.getContext('2d');
@@ -3181,13 +3313,15 @@ function newRun(mode, opts) {
     genDensity: trait === 'smuggler' ? 1.15 : 1,
     t: 0, travelled: 0, dist_m: 0, speed: CFG.SPEED_START,
     lane: 1, shipX: 1, laneFrom: 1, laneT: 1,
-    fuelCap: CFG.FUEL_MAX + ship.stats.fuel, fuel: CFG.FUEL_MAX + ship.stats.fuel,
+    fuelCap: CFG.FUEL_MAX + ship.stats.fuel + 8 * upgLvl('fuel'), fuel: CFG.FUEL_MAX + ship.stats.fuel + 8 * upgLvl('fuel'),
     coins: 0, coinMissed: 0, dodges: 0, shieldBlocks: 0, cansCollected: 0,
     powerupsCollected: 0, bhEscaped: 0, hitsTaken: 0, nodmgStart: 0,
-    shield: !!opts.shield, magnetT: opts.magnet ? CFG.MAGNET_TIME * ship.stats.mag : 0, doubleT: 0, invulnT: 0,
+    shield: !!opts.shield, magnetT: opts.magnet ? CFG.MAGNET_TIME * ship.stats.mag * (1 + 0.2 * upgLvl('magnet')) : 0, doubleT: 0, invulnT: 0,
     entities: [], gen: new Generator({ seed, mod }),
     continueUsed: false, doubled: false, over: false, reason: '',
     combo: 0, comboT: 0, coinSeq: 0,
+    /* v7: milestones + dodge streak + crates */
+    milesDone: 0, nextMile: CFG.MILE_FIRST, dodgeChain: 0, cratesRun: 0,
     trail: [], fuelDrain: 1,
     storm: 0, stormPhase: -1, nextStormAt: 40,
     /* v6: sectors + adrenaline */
@@ -3198,6 +3332,9 @@ function newRun(mode, opts) {
   if (trait === 'magnetolog') run.passiveMag = 1.2 * (1 + 0.15 * stars);
   if (trait === 'void') run.passiveMag = 2.0 * (1 + 0.1 * stars);
   if (trait === 'emperor') { run.shield = true; run.magnetT = Math.max(run.magnetT, CFG.MAGNET_TIME * ship.stats.mag); }
+  /* v7: emergency shield module — chance to start protected */
+  const shDef = upgDef('shield');
+  if (!run.shield && shDef && Math.random() * 100 < upgVal(shDef)) run.shield = true;
   return run;
 }
 
@@ -3225,6 +3362,37 @@ function enterSector(r) {
   toast(t('sector_clear', { n: r.sector - 1, c: bonus }), 'star');
   syncCoinsUI();
   saveGame(false);
+}
+/* v7: distance milestone — a visible short-term goal every 100/250 m
+ * with an instant payout (coins + XP), and a random power-up every 1000 m.
+ * The HUD chip always shows the next milestone and its reward. */
+function milestoneHit(r) {
+  const mile = r.nextMile;
+  r.milesDone++;
+  const idx = r.milesDone - 1;
+  const coins = Math.min(CFG.MILE_COIN_CAP, CFG.MILE_COIN_BASE + CFG.MILE_COIN_STEP * idx);
+  const xp = CFG.MILE_XP_BASE + CFG.MILE_XP_STEP * idx;
+  r.coins += coins; S.save.coins += coins;
+  r.nextMile += (mile === CFG.MILE_FIRST) ? 150 : CFG.MILE_STEP;
+  const big = mile % 1000 === 0;
+  let bonusName = '';
+  if (big) {
+    const kinds = ['shield', 'magnet', 'double', 'fuel'];
+    const k = kinds[Math.floor(Math.random() * kinds.length)];
+    if (k === 'shield') r.shield = true;
+    if (k === 'magnet') r.magnetT = Math.max(r.magnetT, magnetTime(r));
+    if (k === 'double') r.doubleT = Math.max(r.doubleT, CFG.DOUBLE_TIME);
+    if (k === 'fuel') r.fuel = Math.min(r.fuelCap, r.fuel + 30);
+    bonusName = t(k === 'fuel' ? 'pu_fuel' : 'pu_' + k);
+  }
+  grantXp(xp, true);
+  Aud.milestone(big);
+  S.flash = Math.max(S.flash, big ? 0.22 : 0.1);
+  const px = L.fieldX + (r.shipX + 0.5) * L.cell, py = (L.fieldHcells - CFG.SHIP_Y) * L.cell;
+  particles(px, py, big ? 26 : 12, ['#ffd76a', '#fff6c9', '#7edcff'], 5, 0.7);
+  toast(big ? t('mile_big', { n: mile, c: coins, bonus: bonusName }) : t('mile_hit', { n: mile, c: coins }), 'star');
+  floatText(px, py - 46, '+' + coins, '#7edcff');
+  syncCoinsUI();
 }
 function grantXp(n, quiet) {
   const p = S.save.pilot;
@@ -3271,7 +3439,7 @@ function startRun(mode, opts) {
   D.pu_chips.innerHTML = '';
   Aud.setMood('belt', 0);
   if (S.boost.shield && !S.run.shield) S.run.shield = true;
-  if (S.boost.magnet && !S.run.magnetT) S.run.magnetT = CFG.MAGNET_TIME * S.run.ship.stats.mag;
+  if (S.boost.magnet && !S.run.magnetT) S.run.magnetT = magnetTime(S.run);
   S.boost.shield = false; S.boost.magnet = false; renderBoosters();
   if (!S.save.tutorial_done && !opts.skipTut) { S.tut.active = true; S.tut.step = 1; showTutorial(); }
   else { S.tut.active = false; D.tut.classList.remove('active'); }
@@ -3298,10 +3466,11 @@ function endRun(reason) {
 
   const st = S.save.stats;
   const dist = Math.floor(r.dist_m);
-  let isRecord = false, missionMsg = '', dailyMsg = '', missionNew = false;
+  let isRecord = false, missionMsg = '', dailyMsg = '', missionNew = false, chestMsg = '';
   {
   st.total_distance += dist; st.total_coins += r.coins; st.total_dodges += r.dodges; st.total_runs++;
   st.shield_blocks += r.shieldBlocks; st.cans += r.cansCollected; st.powerups += r.powerupsCollected; st.bh_total += r.bhEscaped;
+  st.crates = (st.crates || 0) + (r.cratesRun || 0); st.miles = (st.miles || 0) + (r.milesDone || 0);
   const nodmg = r.hitsTaken === 0 ? dist : Math.floor(dist - r.nodmgStart);
   st.best_nodmg = Math.max(st.best_nodmg, nodmg);
   if (r.coinMissed === 0 && r.coins >= 50) st.best_perfect = Math.max(st.best_perfect, r.coins);
@@ -3357,6 +3526,7 @@ function endRun(reason) {
   }
   // v6: pilot XP + sector record
   let xp = Math.floor(dist * 0.1) + Math.floor(r.coins * 0.5) + r.dodges + (r.near || 0) * 2;
+  xp = Math.round(xp * (1 + 0.15 * upgLvl('xp')));   /* v7: flight log module */
   if (missionNew) xp += 50;
   if (dailyMsg) xp += 40;
   const p = S.save.pilot;
@@ -3367,6 +3537,18 @@ function endRun(reason) {
   S.overXp = { xp, ff };
   S.save.stats.best_sector = Math.max(S.save.stats.best_sector || 1, r.sector);
   if (ff) toast(t('first_flight'), 'star');
+  /* v7: run chest — every 3rd run auto-opens a reward crate; the counter
+     is shown on the game-over screen to motivate "one more run". */
+  if (!S.save.runChest) S.save.runChest = { prog: 0 };
+  S.save.runChest.prog = (S.save.runChest.prog || 0) + 1;
+  if (S.save.runChest.prog >= CFG.CHEST_RUNS) {
+    S.save.runChest.prog = 0;
+    const rc = 150 + Math.floor(Math.random() * 201);
+    S.save.coins += rc;
+    grantXp(CFG.CHEST_RUN_XP, true);
+    chestMsg = t('run_chest_open', { m: CFG.CHEST_RUNS, c: rc, x: CFG.CHEST_RUN_XP });
+    Aud.win();
+  }
   // daily quests
   ensureQuests();
   updateQuests(r);
@@ -3385,6 +3567,16 @@ function endRun(reason) {
 
   D.over_title.textContent = reason === 'fuel' ? t('gameover_fuel') : t('gameover_crash');
   D.over_record.style.display = isRecord ? 'block' : 'none';
+  /* v7: "almost a record" hook + run-chest status on the game-over screen */
+  {
+    const bestNow = S.save.best_distances[r.mode] || 0;
+    const nearRec = !isRecord && bestNow > 20 && dist >= bestNow * 0.8;
+    D.over_near.style.display = nearRec ? 'block' : 'none';
+    if (nearRec) D.over_near.textContent = t('record_close', { n: Math.max(1, bestNow - dist) });
+  }
+  D.over_chest.style.display = 'block';
+  D.over_chest.classList.toggle('gold', !!chestMsg);
+  D.over_chest.textContent = chestMsg || t('run_chest_prog', { n: S.save.runChest.prog, m: CFG.CHEST_RUNS });
   D.over_dist.textContent = t('distance_m', { n: dist });
   D.over_coins.textContent = r.coins;
   D.over_dodges.textContent = r.dodges;
@@ -3427,7 +3619,7 @@ function continueRun() {
   const shipYc = L.fieldHcells - CFG.SHIP_Y;
   r.entities = r.entities.filter(e => e.kind !== 'obs' || (r.travelled - e.dist) < -3 || (r.travelled - e.dist) > shipYc + 1);
   r.shield = true; r.invulnT = 2; r.fuel = Math.max(r.fuel, 40);
-  r.over = false; r.reason = ''; r.combo = 0;
+  r.over = false; r.reason = ''; r.combo = 0; r.dodgeChain = 0;
   S.screen = 'playing';
   showScreen('hud');
   Aud.engineStart();
@@ -3588,6 +3780,7 @@ function updateRun(dt) {
   const dcells = r.speed * dtw;
   r.travelled += dcells;
   r.dist_m += dcells * CFG.M_PER_CELL;
+  if (r.dist_m >= r.nextMile) milestoneHit(r);
 
   r.fuel -= CFG.FUEL_DRAIN * (r.fuelDrain || 1) * dtw;
   if (r.fuel <= 0) { r.fuel = 0; endRun('fuel'); return; }
@@ -3616,7 +3809,7 @@ function updateRun(dt) {
       r.luckyT = CFG.LUCKY_T / traitPow(r);
       const k = ['shield', 'magnet', 'double', 'fuel'][Math.floor(Math.random() * 4)];
       if (k === 'shield') r.shield = true;
-      if (k === 'magnet') r.magnetT = CFG.MAGNET_TIME;
+      if (k === 'magnet') r.magnetT = magnetTime(r);
       if (k === 'double') r.doubleT = CFG.DOUBLE_TIME;
       if (k === 'fuel') r.fuel = Math.min(r.fuelCap, r.fuel + 20);
       toast(t('tr_lucky') + ': ' + t(k === 'fuel' ? 'pu_fuel' : 'pu_' + k), 'star');
@@ -3661,6 +3854,15 @@ function updateRun(dt) {
       if (e.kind === 'obs' && !e.hitDone) {
         r.dodges++;
         if (r.trait === 'miner') { r.coins += 1; S.save.coins += 1; floatText(L.fieldX + (r.shipX + 0.5) * L.cell, shipY * L.cell - 26, '+1', '#ffd76a'); }
+        /* v7: dodge streak — every 5th clean pass pays coins + adrenaline */
+        r.dodgeChain = (r.dodgeChain || 0) + 1;
+        if (r.dodgeChain % CFG.DODGE_CHAIN === 0) {
+          const b = CFG.DODGE_CHAIN_COIN + r.sector;
+          r.coins += b; S.save.coins += b;
+          r.adr = Math.min(CFG.ADR_MAX, r.adr + 4);
+          floatText(L.fieldX + (r.shipX + 0.5) * L.cell, shipY * L.cell - 40, t('dodge_ft', { n: r.dodgeChain, c: b }), '#58d68d');
+          Aud.tone(988, 0.05, 'triangle', 0.08);
+        }
         if (e.type === 'blackhole') r.bhEscaped++;
         else if (e.minDx !== undefined && e.minDx < 0.95) {
           r.near = (r.near || 0) + 1;
@@ -3769,14 +3971,36 @@ function updateRun(dt) {
             S.save.coins -= 30;
             const k = ['shield', 'magnet', 'double'][Math.floor(Math.random() * 3)];
             if (k === 'shield') r.shield = true;
-            if (k === 'magnet') r.magnetT = CFG.MAGNET_TIME;
+            if (k === 'magnet') r.magnetT = magnetTime(r);
             if (k === 'double') r.doubleT = CFG.DOUBLE_TIME;
             toast(t('trader_ok') + ': ' + t('pu_' + k), 'chest');
             Aud.power();
           } else toast(t('trader_poor'), 'chest');
         }
+        else if (e.type === 'crate') {
+          /* v7: supply crate — instant random reward with full feedback */
+          r.cratesRun = (r.cratesRun || 0) + 1;
+          const kinds = ['coins', 'coins', 'fuel', 'shield', 'magnet', 'double', 'xp'];
+          const k = kinds[Math.floor(Math.random() * kinds.length)];
+          if (k === 'coins') {
+            const b = Math.round((30 + Math.floor(Math.random() * 31)) * coinValueMul());
+            r.coins += b; S.save.coins += b;
+            toast(t('crate_coins', { n: b }), 'chest');
+            floatText(px, y * L.cell - 30, '+' + b, '#ffd76a');
+          } else if (k === 'fuel') {
+            r.fuel = Math.min(r.fuelCap, r.fuel + 25);
+            toast(t('crate_fuel', { n: 25 }), 'fuel');
+          } else if (k === 'shield') { r.shield = true; toast(t('crate_shield'), 'shield'); }
+          else if (k === 'magnet') { r.magnetT = Math.max(r.magnetT, 6 * (1 + 0.2 * upgLvl('magnet'))); toast(t('crate_magnet', { n: 6 }), 'magnet'); }
+          else if (k === 'double') { r.doubleT = Math.max(r.doubleT, 6); toast(t('crate_double', { n: 6 }), 'star'); }
+          else { grantXp(30, true); toast(t('crate_xp', { n: 30 }), 'quest'); }
+          Aud.power();
+          particles(px, y * L.cell, 22, ['#ffd76a', '#fff6c9', '#9ef0ff'], 5, 0.8);
+          S.flash = Math.max(S.flash, 0.12);
+          syncCoinsUI();
+        }
         else if (e.type === 'shield') { r.shield = true; r.powerupsCollected++; Aud.power(); toast(t('pu_shield'), 'shield'); }
-        else if (e.type === 'magnet') { r.magnetT = CFG.MAGNET_TIME * r.ship.stats.mag; r.powerupsCollected++; Aud.power(); toast(t('pu_magnet'), 'magnet'); }
+        else if (e.type === 'magnet') { r.magnetT = magnetTime(r); r.powerupsCollected++; Aud.power(); toast(t('pu_magnet'), 'magnet'); }
         else if (e.type === 'double') { r.doubleT = CFG.DOUBLE_TIME; r.powerupsCollected++; Aud.power(); toast(t('pu_double'), 'star'); }
         particles(px, y * L.cell, 16, ['#9ef0ff', '#ffd76a', '#ffffff'], 4, 0.6);
         continue;
@@ -3808,7 +4032,7 @@ function updateRun(dt) {
   if (S.bot) botTick();
 }
 function collectCoin(r, byDrone) {
-  let val = r.ship.stats.coin * (r.doubleT > 0 ? 2 : 1) * (r.od.t > 0 ? 2 : 1) * (r.adrT > 0 ? 2 : 1);
+  let val = r.ship.stats.coin * (r.doubleT > 0 ? 2 : 1) * (r.od.t > 0 ? 2 : 1) * (r.adrT > 0 ? 2 : 1) * coinValueMul();
   if (r.trait === 'smuggler') val *= 2;
   if (r.trait === 'magnetolog') val = Math.max(1, Math.floor(val * 0.5));
   val = Math.max(1, Math.round(val));
@@ -3819,9 +4043,11 @@ function collectCoin(r, byDrone) {
   const px = L.fieldX + (r.shipX + 0.5) * L.cell, py = (L.fieldHcells - CFG.SHIP_Y) * L.cell;
   particles(px, py, 5, ['#ffd76a', '#fff6c9'], 3, 0.35);
   floatText(px, py - 22, '+' + val, '#ffd76a');
-  if (r.combo > 0 && r.combo % CFG.COMBO_STEP === 0) {
-    S.save.coins += CFG.COMBO_BONUS; r.coins += CFG.COMBO_BONUS;
-    toast(t('combo', { n: r.combo }) + ' — ' + t('combo_bonus', { n: CFG.COMBO_BONUS }), 'flame');
+  const cstep = r.trait === 'collector' ? 5 : CFG.COMBO_STEP;   /* v7: collector trait now works as advertised */
+  if (r.combo > 0 && r.combo % cstep === 0) {
+    const cb = comboBonus();
+    S.save.coins += cb; r.coins += cb;
+    toast(t('combo', { n: r.combo }) + ' — ' + t('combo_bonus', { n: cb }), 'flame');
     Aud.power();
   }
   syncCoinsUI();
@@ -3887,7 +4113,7 @@ function botTick() {
 /* ================= INPUT ================= */
 const SDin = { down: false, x0: 0, y0: 0, consumed: false };
 const SD = {
-  version: '6.0.0',
+  version: '7.0.0',
   booted: false,
   input: { swipes: 0, keys: 0, moves: 0, walls: 0, dropped: 0 },
   perf: { frames: 0, fps: 60, maxFrameMs: 0, genMaxMs: 0, entsMax: 0 },
@@ -4184,7 +4410,7 @@ function render() {
         const sp = baked('coin' + fr, LOW.coin[fr]);
         g.drawImage(sp, Math.floor(x - sp.width / 2), Math.floor(y - sp.height / 2));
       } else {
-        const low = e.type === 'fuel' ? LOW.fuel : e.type === 'shield' ? LOW.shield : e.type === 'magnet' ? LOW.magnet : e.type === 'double' ? LOW.double : e.type === 'boost' ? LOW.boost : e.type === 'portal' ? LOW.portal : LOW.trader;
+        const low = e.type === 'fuel' ? LOW.fuel : e.type === 'shield' ? LOW.shield : e.type === 'magnet' ? LOW.magnet : e.type === 'double' ? LOW.double : e.type === 'boost' ? LOW.boost : e.type === 'portal' ? LOW.portal : e.type === 'crate' ? LOW.crate : LOW.trader;
         const sp = baked('it' + e.type, low);
         const yy = y + Math.sin(r.t * 4 + (e.ph || 0)) * 2;
         g.drawImage(sp, Math.floor(x - sp.width / 2), Math.floor(yy - sp.height / 2));
@@ -4315,6 +4541,10 @@ function updateHud() {
   const dangerNow = r.sectorT >= CFG.SECTOR_T - CFG.DANGER_LAST;
   pu += '<span class="pu-chip sector' + (dangerNow ? ' danger' : '') + '">' + pixIconSVG('star', 12) + ' ' +
     t('sector_chip', { n: r.sector }) + ' · ' + esc(t('biome_' + r.biome)) + '</span>';
+  /* v7: milestone goal chip (always visible) + dodge streak chip */
+  pu += '<span class="pu-chip mile">' + pixIconSVG('star', 12) + ' ' +
+    t('mile_chip', { n: r.nextMile, c: Math.min(CFG.MILE_COIN_CAP, CFG.MILE_COIN_BASE + CFG.MILE_COIN_STEP * r.milesDone) }) + '</span>';
+  if ((r.dodgeChain || 0) >= 3) pu += '<span class="pu-chip dodge">' + pixIconSVG('flame', 12) + ' ' + t('dodge_chip', { n: r.dodgeChain }) + '</span>';
   if (r.adrT > 0) pu += '<span class="pu-chip adr">' + pixIconSVG('flame', 12) + ' ' + t('adr_chip') + ' ' + Math.ceil(r.adrT) + 's</span>';
   if (r.shield) pu += '<span class="pu-chip shield">' + pixIconSVG('shield', 12) + ' ' + t('pu_shield') + '</span>';
   if (r.magnetT > 0) pu += '<span class="pu-chip magnet">' + pixIconSVG('magnet', 12) + ' ' + Math.ceil(r.magnetT) + 's</span>';
@@ -4355,6 +4585,7 @@ function showScreen(name) {
   S.screen = name === 'hud' ? 'playing' : (name === 'pause' ? 'paused' : (name === 'over' ? 'gameover' : name));
   if (name === 'menu') { S.run = null; syncCoinsUI(); renderMenu(); fitMenu(); }
   if (name === 'missions') renderMissions();
+  if (name === 'upg') renderUpgrades();
   if (name === 'ships') renderShips();
   if (name === 'ach') renderAchs();
   if (name === 'daily') renderDaily();
@@ -4382,6 +4613,13 @@ function syncCoinsUI() {
   D.menu_coins.textContent = S.save ? S.save.coins : 0;
   for (const el of document.querySelectorAll('.mc-coins')) el.textContent = S.save ? S.save.coins : 0;
 }
+/* v7: green dot on the menu button when an upgrade is affordable */
+function updateUpgBadge() {
+  const b = D.btn_upg;
+  if (!b || !S.save) return;
+  const can = UPG_DEFS.some(def => upgLvl(def.id) < def.max && S.save.coins >= upgCost(def));
+  b.classList.toggle('canbuy', can);
+}
 function renderMenu() {
   const b = S.save.best_distances;
   D.menu_best.textContent = t('best', { n: Math.max(b.endless, b.mission, b.daily) });
@@ -4396,6 +4634,7 @@ function renderMenu() {
   renderQuests();
   renderWeekly();
   syncCoinsUI();
+  updateUpgBadge();
 }
 function renderQuests() {
   ensureQuests();
@@ -4435,6 +4674,47 @@ function renderBoosters() {
   D.bst_magnet.classList.toggle('on', S.boost.magnet);
   D.bst_shield_buy.textContent = S.boost.shield ? '✔' : t('booster_cost', { n: CFG.BOOSTER_COST });
   D.bst_magnet_buy.textContent = S.boost.magnet ? '✔' : t('booster_cost', { n: CFG.BOOSTER_COST });
+}
+/* v7: permanent module upgrades screen */
+function renderUpgrades() {
+  const box = D.upg_list;
+  if (!box) return;
+  box.textContent = '';
+  for (const def of UPG_DEFS) {
+    const lvl = upgLvl(def.id);
+    const maxed = lvl >= def.max;
+    const cost = upgCost(def);
+    const can = !maxed && S.save.coins >= cost;
+    const card = document.createElement('div');
+    card.className = 'card' + (maxed ? ' maxed done' : '');
+    let sub = t('upg_' + def.id + 'd', { a: maxed ? upgVal(def) : upgNext(def) });
+    if (lvl > 0 && !maxed) sub += ' · ' + t('upg_now', { a: upgVal(def) });
+    card.innerHTML = '<div class="cbody"><div class="cname">' + pixIconSVG(def.icon, 14) + ' ' + esc(t('upg_' + def.id)) +
+      ' <span style="color:#8fa3d9;font-weight:700">' + t('upg_lvl', { n: lvl, m: def.max }) + '</span></div>' +
+      '<div class="csub">' + esc(sub) + '</div>' +
+      '<div class="upips">' + Array.from({ length: def.max }, (_, i) => '<span class="upip' + (i < lvl ? ' on' : '') + '"></span>').join('') + '</div></div>';
+    const btn = document.createElement('button');
+    btn.className = 'btn small ' + (maxed ? 'gray' : can ? 'gold' : 'green');
+    btn.innerHTML = maxed ? esc(t('upg_max')) : pixIconSVG('coin', 12) + ' ' + cost;
+    if (!maxed) btn.addEventListener('click', () => buyUpgrade(def));
+    card.appendChild(btn);
+    box.appendChild(card);
+  }
+  syncCoinsUI();
+}
+function buyUpgrade(def) {
+  const lvl = upgLvl(def.id);
+  if (lvl >= def.max) return;
+  const cost = def.cost[lvl];
+  if (S.save.coins < cost) { toast(t('not_enough_coins')); Aud.tone(180, 0.15, 'square', 0.12); return; }
+  S.save.coins -= cost;
+  S.save.upgrades[def.id] = lvl + 1;
+  Aud.win();
+  toast(t('upg_bought', { name: t('upg_' + def.id) }), 'star');
+  checkAchievements();
+  saveGame(true);
+  renderUpgrades();
+  updateUpgBadge();
 }
 function toast(msg, icon) {
   const el = document.createElement('div');
@@ -4620,6 +4900,7 @@ function applyLang() {
   renderBoosters();
   if (S.screen === 'menu') renderMenu();
   if (S.screen === 'missions') renderMissions();
+  if (S.screen === 'upg') renderUpgrades();
   if (S.screen === 'ships') renderShips();
   if (S.shipView && D.scr_ship.classList.contains('active')) openShipDetail(S.shipView);
   if (S.screen === 'ach') renderAchs();
@@ -4658,6 +4939,7 @@ function bindUI() {
   const click = (el, fn) => el && el.addEventListener('click', ev => { ev.stopPropagation(); Aud.ensure(); Aud.resume(); Aud.ui(); fn(); });
   click(D.btn_play, () => startRun('endless'));
   click(D.btn_missions, () => showScreen('missions'));
+  click(D.btn_upg, () => showScreen('upg'));
   click(D.btn_daily, () => showScreen('daily'));
   click(D.btn_ships, () => showScreen('ships'));
   click(D.btn_ach, () => showScreen('ach'));
@@ -4921,6 +5203,12 @@ window.__SD = {
       shield: r ? r.shield : false, magnetT: r ? r.magnetT : 0, doubleT: r ? r.doubleT : 0,
       dodges: r ? r.dodges : 0, hits: r ? r.hitsTaken : 0, over: r ? r.over : true,
       combo: r ? r.combo : 0, storm: r ? r.storm : 0,
+      /* v7 */
+      milesDone: r ? r.milesDone : 0, nextMile: r ? r.nextMile : 0, dodgeChain: r ? (r.dodgeChain || 0) : 0,
+      cratesRun: r ? (r.cratesRun || 0) : 0,
+      upgrades: S.save ? Object.assign({}, S.save.upgrades) : {},
+      upgTotal: upgTotal(),
+      chestProg: S.save && S.save.runChest ? S.save.runChest.prog : 0,
       trait: r ? r.trait : '', bombs: r ? r.bombs : 0, od: r ? Object.assign({}, r.od) : null,
       slowT: r ? r.slowT : 0, phaseT: r ? r.phaseT : 0, bonusT: r ? r.bonusT : 0,
       stars: r ? r.stars : 0,
@@ -4964,7 +5252,7 @@ window.__SD = {
     const shipY = L.fieldHcells - CFG.SHIP_Y;
     const dist = r.travelled + shipY - (dy === undefined ? 4 : dy);
     if (type === 'coin') r.entities.push({ kind: 'coin', type: 'coin', x: lane, lane, dist, taken: false, ph: 0 });
-    else if (type === 'fuel' || type === 'shield' || type === 'magnet' || type === 'double')
+    else if (type === 'fuel' || type === 'shield' || type === 'magnet' || type === 'double' || type === 'crate')
       r.entities.push({ kind: 'item', type, x: lane, lane, dist, taken: false, ph: 0 });
     else r.entities.push({ kind: 'obs', type, x: lane, lane, dist, drift: 0, age: 0, rot: 0, vr: 0, astI: 0, passed: false, hitDone: false, ph: 0 });
     return true;
