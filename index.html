@@ -651,8 +651,6 @@ const I18N = {
     ad_dlg_title: 'Почему нет рекламы?',
     ad_dlg_text: 'Настоящая реклама показывается только внутри мобильного приложения VK (при включённой монетизации в кабинете) или на платформах GamePush. В этой среде кнопка не может показать ролик и не выдаёт награду без него. Чтобы увидеть рекламный поток и счётчики, запусти игру с параметром ?adsmock=1 — симуляция показа 3 секунды.',
     ad_dlg_sim: 'Включить симуляцию рекламы', ad_dlg_ok: 'Понятно',
-    ad_hint: 'Смотрите рекламу до конца (30 сек) — иначе награда не начислится',
-    ad_closed_early: 'Награда не выдана: реклама не досмотрена (нужно 30 секунд)',
     ad_ship_btn: 'Смотреть рекламу ({n}/{m})', ad_ship_done: 'Реклама просмотрена ({n}/{m})',
     sd_equipped: 'Выбран', sd_back: 'Назад', sd_progress: 'Прогресс мастерства',
     mast1: '500 м этим кораблём', mast2: '150 монет за забег', mast3: 'Пережить 2 шторма',
@@ -854,8 +852,6 @@ const I18N = {
     ad_dlg_title: 'Why is there no ad?',
     ad_dlg_text: 'Real ads play only inside the VK mobile app (with monetization enabled in the dev cabinet) or on GamePush platforms. In this environment the button cannot play a video and never grants a reward without one. To see the ad flow and counters, open the game with ?adsmock=1 — a 3-second simulated ad.',
     ad_dlg_sim: 'Enable ad simulation', ad_dlg_ok: 'Got it',
-    ad_hint: 'Watch the ad to the end (30 s) — otherwise no reward',
-    ad_closed_early: 'No reward: the ad was closed before the full 30-second view',
     ad_ship_btn: 'Watch ad ({n}/{m})', ad_ship_done: 'Ads completed ({n}/{m})',
     sd_equipped: 'Equipped', sd_back: 'Back', sd_progress: 'Mastery progress',
     mast1: 'Fly 500 m with this ship', mast2: '150 coins in one run', mast3: 'Survive 2 storms',
@@ -2226,7 +2222,7 @@ const HouseAds = {
           ? '<div id="sim-timer" style="font-size:42px;font-weight:900;color:#ffd76a;letter-spacing:2px;margin:4px 0 6px;font-variant-numeric:tabular-nums">0:30</div>' +
             '<div style="height:10px;background:#0a0d20;border:1px solid #2e3a6e"><div id="sim-bar" style="height:100%;width:100%;background:#58d68d"></div></div>' +
             '<div id="sim-cd" style="color:#8fa3d9;font-size:11px;font-weight:800;margin-top:8px;min-height:28px">' + (ru ? 'Досмотрите до конца — награда начисляется только за полный просмотр' : 'Watch to the end — the reward is granted for the full view only') + '</div>' +
-            '<button id="sim-claim" style="display:none;margin-top:10px;width:100%;padding:12px;border:2px solid #241812;background:#f2a93b;color:#241812;font-weight:900;font-size:14px;cursor:pointer;letter-spacing:1px">' + (ru ? '✕ ЗАБРАТЬ НАГРАДУ' : '✕ CLAIM REWARD') + '</button>'
+            '<button id="sim-claim" style="display:none;margin-top:10px;width:100%;padding:12px;border:2px solid #241812;background:#f2a93b;color:#241812;font-weight:900;font-size:14px;cursor:pointer;letter-spacing:1px">' + (ru ? 'ЗАБРАТЬ НАГРАДУ' : 'CLAIM REWARD') + '</button>'
           : '<div style="height:8px;background:#0a0d20;border:1px solid #2e3a6e"><div id="sim-bar" style="height:100%;width:100%;background:#58d68d"></div></div>' +
             '<div id="sim-cd" style="color:#8fa3d9;font-size:11px;font-weight:800;margin-top:8px">' + (ru ? 'Награда после полного просмотра' : 'Reward after full view') + '</div>') +
       '</div>';
@@ -4555,14 +4551,12 @@ function showRewarded(onReward) {
   SD.events.rewarded++;
   let granted = false;
   const grant = () => { if (!granted) { granted = true; onReward(); } };
-  /* v8.1: 'closed' — пользователь закрыл рекламу, не досмотрев (крестик):
-     награда не выдаётся, объясняем правило. 'unavailable' — рекламы нет:
-     показываем честный диалог. */
+  /* v8.2: никаких всплывающих уведомлений вокруг рекламы.
+     'closed' — закрыт раньше времени: молча без награды (правило платформ).
+     'unavailable' — рекламы нет: честный диалог. */
   const deny = (reason) => {
-    if (reason === 'closed') toast(t('ad_closed_early'), 'star');
-    else openAdDialog();
+    if (reason !== 'closed') openAdDialog();
   };
-  toast(t('ad_hint'), 'quest');
   try {
     Platform.adapter.rewarded(grant, () => {}, deny);
   } catch (e) { deny('unavailable'); }
@@ -5703,5 +5697,5 @@ else bootSafe();
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a58718d86c45e49a',t:'MTc5NDMzNTA5Nw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a58718d86c45e49a',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a58729ee6835e49a',t:'MTc5NDMzNTc5Nw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a58729ee6835e49a',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
