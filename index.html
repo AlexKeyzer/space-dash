@@ -651,6 +651,8 @@ const I18N = {
     ad_dlg_title: 'Почему нет рекламы?',
     ad_dlg_text: 'Настоящая реклама показывается только внутри мобильного приложения VK (при включённой монетизации в кабинете) или на платформах GamePush. В этой среде кнопка не может показать ролик и не выдаёт награду без него. Чтобы увидеть рекламный поток и счётчики, запусти игру с параметром ?adsmock=1 — симуляция показа 3 секунды.',
     ad_dlg_sim: 'Включить симуляцию рекламы', ad_dlg_ok: 'Понятно',
+    ad_hint: 'Смотрите рекламу до конца (30 сек) — иначе награда не начислится',
+    ad_closed_early: 'Награда не выдана: реклама не досмотрена (нужно 30 секунд)',
     ad_ship_btn: 'Смотреть рекламу ({n}/{m})', ad_ship_done: 'Реклама просмотрена ({n}/{m})',
     sd_equipped: 'Выбран', sd_back: 'Назад', sd_progress: 'Прогресс мастерства',
     mast1: '500 м этим кораблём', mast2: '150 монет за забег', mast3: 'Пережить 2 шторма',
@@ -852,6 +854,8 @@ const I18N = {
     ad_dlg_title: 'Why is there no ad?',
     ad_dlg_text: 'Real ads play only inside the VK mobile app (with monetization enabled in the dev cabinet) or on GamePush platforms. In this environment the button cannot play a video and never grants a reward without one. To see the ad flow and counters, open the game with ?adsmock=1 — a 3-second simulated ad.',
     ad_dlg_sim: 'Enable ad simulation', ad_dlg_ok: 'Got it',
+    ad_hint: 'Watch the ad to the end (30 s) — otherwise no reward',
+    ad_closed_early: 'No reward: the ad was closed before the full 30-second view',
     ad_ship_btn: 'Watch ad ({n}/{m})', ad_ship_done: 'Ads completed ({n}/{m})',
     sd_equipped: 'Equipped', sd_back: 'Back', sd_progress: 'Mastery progress',
     mast1: 'Fly 500 m with this ship', mast2: '150 coins in one run', mast3: 'Survive 2 storms',
@@ -2205,32 +2209,57 @@ const HouseAds = {
     }
     if (this._busy) { onDone && onDone(); return; }
     this._busy = true;
+    const rewarded = kind === 'rewarded';
+    const secs = rewarded ? 30 : 3;
     const ru = ((navigator.language || 'en').slice(0, 2) === 'ru');
-    const secs = kind === 'rewarded' ? 4 : 3;
     const el = document.createElement('div');
     el.id = 'sim-ad';
     el.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(4,6,18,.96);display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif';
+    /* v8.1: rewarded-слот — вместо крестика 30-секундный таймер.
+       Кнопка закрытия появляется ТОЛЬКО после полного просмотра. */
     el.innerHTML =
-      '<div style="width:min(86vw,340px);border:2px solid #2e3a6e;border-radius:8px;background:#161c3a;padding:18px 16px;text-align:center;box-shadow:0 6px 0 #0a0d20">' +
-        '<div style="color:#8fa3d9;font-size:10px;font-weight:800;letter-spacing:2px;margin-bottom:10px">' + (ru ? 'РЕКЛАМА' : 'AD') + ' · ' + secs + 's</div>' +
+      '<div style="width:min(88vw,360px);border:2px solid #2e3a6e;border-radius:8px;background:#161c3a;padding:18px 16px;text-align:center;box-shadow:0 6px 0 #0a0d20">' +
+        '<div style="color:#8fa3d9;font-size:10px;font-weight:800;letter-spacing:2px;margin-bottom:10px">' + (ru ? 'РЕКЛАМА' : 'AD') + ' · 18+</div>' +
         '<div style="font-size:22px;font-weight:900;color:#ffd76a;letter-spacing:1px;text-shadow:0 3px 0 #7a4a00">' + (ru ? 'ФРУКТОВЫЙ СНАЙПЕР' : 'FRUIT SNIPER') + '</div>' +
         '<div style="color:#aebcdf;font-size:12px;font-weight:700;margin:8px 0 14px">' + (ru ? 'Режь фрукты метко — играй бесплатно в VK!' : 'Slice fruit with precision — play free on VK!') + '</div>' +
-        '<div style="height:8px;background:#0a0d20;border:1px solid #2e3a6e"><div id="sim-bar" style="height:100%;width:100%;background:#58d68d"></div></div>' +
-        '<div id="sim-cd" style="color:#8fa3d9;font-size:11px;font-weight:800;margin-top:8px">' + (ru ? 'Награда после полного просмотра' : 'Reward after full view') + '</div>' +
+        (rewarded
+          ? '<div id="sim-timer" style="font-size:42px;font-weight:900;color:#ffd76a;letter-spacing:2px;margin:4px 0 6px;font-variant-numeric:tabular-nums">0:30</div>' +
+            '<div style="height:10px;background:#0a0d20;border:1px solid #2e3a6e"><div id="sim-bar" style="height:100%;width:100%;background:#58d68d"></div></div>' +
+            '<div id="sim-cd" style="color:#8fa3d9;font-size:11px;font-weight:800;margin-top:8px;min-height:28px">' + (ru ? 'Досмотрите до конца — награда начисляется только за полный просмотр' : 'Watch to the end — the reward is granted for the full view only') + '</div>' +
+            '<button id="sim-claim" style="display:none;margin-top:10px;width:100%;padding:12px;border:2px solid #241812;background:#f2a93b;color:#241812;font-weight:900;font-size:14px;cursor:pointer;letter-spacing:1px">' + (ru ? '✕ ЗАБРАТЬ НАГРАДУ' : '✕ CLAIM REWARD') + '</button>'
+          : '<div style="height:8px;background:#0a0d20;border:1px solid #2e3a6e"><div id="sim-bar" style="height:100%;width:100%;background:#58d68d"></div></div>' +
+            '<div id="sim-cd" style="color:#8fa3d9;font-size:11px;font-weight:800;margin-top:8px">' + (ru ? 'Награда после полного просмотра' : 'Reward after full view') + '</div>') +
       '</div>';
     document.body.appendChild(el);
     const bar = el.querySelector('#sim-bar');
+    const timer = el.querySelector('#sim-timer');
     const t0 = performance.now();
     const self = this;
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      el.remove();
+      self._busy = false;
+      onDone && onDone();
+    };
     const tick = () => {
+      if (finished) return;
       const p = Math.min(1, (performance.now() - t0) / (secs * 1000));
       if (bar) bar.style.width = ((1 - p) * 100).toFixed(1) + '%';
-      if (p < 1) requestAnimationFrame(tick);
-      else {
-        el.remove();
-        self._busy = false;
-        onDone && onDone();
+      if (timer) {
+        const left = Math.max(0, Math.ceil(secs * (1 - p)));
+        timer.textContent = '0:' + (left < 10 ? '0' + left : left);
       }
+      if (p < 1) requestAnimationFrame(tick);
+      else if (rewarded) {
+        /* таймер завершён — только теперь появляется кнопка закрытия */
+        if (timer) { timer.textContent = '✓'; timer.style.color = '#58d68d'; }
+        const cd = el.querySelector('#sim-cd');
+        if (cd) cd.textContent = ru ? 'Просмотр завершён — заберите награду' : 'View complete — claim your reward';
+        const btn = el.querySelector('#sim-claim');
+        if (btn) { btn.style.display = 'block'; btn.addEventListener('click', finish); }
+      } else finish();
     };
     requestAnimationFrame(tick);
   },
@@ -2375,15 +2404,15 @@ const GamePushAdapter = {
     const gp = this._g();
     let rewarded = false, settled = false;
     const giveReward = () => { if (!rewarded) { rewarded = true; cbReward && cbReward(); } };
-    const close = (success) => {
+    const close = (success, reason) => {
       if (settled) return; settled = true;
-      if (!rewarded && !success) { cbErr && cbErr(); }
+      if (!rewarded && !success) { cbErr && cbErr(reason || 'closed'); }
       cbClose && cbClose(!!success || rewarded);
     };
     if (!gp || !gp.ads || typeof gp.ads.showRewardedVideo !== 'function' || gp.ads.isRewardedAvailable === false) {
       HouseAds.show('rewarded',
         () => { cbReward && cbReward(); cbClose && cbClose(true); },
-        () => { cbErr && cbErr(); cbClose && cbClose(false); });
+        () => { close(false, 'unavailable'); });
       return;
     }
     this._safe(() => gp.ads.on('rewarded:reward', giveReward));
@@ -2393,7 +2422,7 @@ const GamePushAdapter = {
       if (p && p.then) p.then(s => { if (s) giveReward(); close(s !== false); }, () => {
         HouseAds.show('rewarded',
           () => { giveReward(); close(true); },
-          () => { close(false); });
+          () => { close(false, 'unavailable'); });
       });
     });
     setTimeout(() => close(rewarded), 120000);
@@ -2614,18 +2643,27 @@ const VKAdapter = {
     setTimeout(ok, 60000);
   },
 
-  /* rewarded: check → show; при check=false всё равно пытаемся показать */
+  /* rewarded: check → show; при check=false всё равно пытаемся показать.
+     Политика наград (v8.1): крестик/раннее закрытие = НЕТ награды.
+     cbErr получает причину: 'closed' (закрыт раньше времени)
+     или 'unavailable' (реклама не показалась). */
   rewarded(cbReward, cbClose, cbErr) {
     let granted = false, settled = false;
     const give = () => { if (!granted) { granted = true; cbReward && cbReward(); } };
     const close = (s) => { if (!settled) { settled = true; cbClose && cbClose(s); } };
-    const fail = () => { this.preloadAds(); cbErr && cbErr(); close(false); };
-    if (!this.isInsideVk()) { HouseAds.show('rewarded', () => { give(); close(true); }); return; }
+    const fail = (reason) => { this.preloadAds(); cbErr && cbErr(reason || 'unavailable'); close(false); };
+    if (!this.isInsideVk()) {
+      HouseAds.show('rewarded',
+        () => { give(); close(true); },
+        () => { fail('unavailable'); });
+      return;
+    }
     const show = () => {
       this._send('VKWebAppShowNativeAds', { ad_format: 'reward' }).then(d => {
         this.preloadAds();
-        if (d && d.result) { give(); close(true); } else fail();
-      }, () => { this.preloadAds(); fail(); });
+        if (d && d.result) { give(); close(true); }   /* награда — только за полный просмотр */
+        else fail('closed');                           /* показ был, но закрыт раньше времени */
+      }, () => { this.preloadAds(); fail('unavailable'); });
     };
     this._send('VKWebAppCheckNativeAds', { ad_format: 'reward' }).then(chk => {
       show();   // показ пытаемся в любом случае: check не у всех клиентов честный
@@ -4517,12 +4555,17 @@ function showRewarded(onReward) {
   SD.events.rewarded++;
   let granted = false;
   const grant = () => { if (!granted) { granted = true; onReward(); } };
-  const deny = () => {
-    openAdDialog();
+  /* v8.1: 'closed' — пользователь закрыл рекламу, не досмотрев (крестик):
+     награда не выдаётся, объясняем правило. 'unavailable' — рекламы нет:
+     показываем честный диалог. */
+  const deny = (reason) => {
+    if (reason === 'closed') toast(t('ad_closed_early'), 'star');
+    else openAdDialog();
   };
+  toast(t('ad_hint'), 'quest');
   try {
     Platform.adapter.rewarded(grant, () => {}, deny);
-  } catch (e) { deny(); }
+  } catch (e) { deny('unavailable'); }
 }
 
 /* ================= RENDER ================= */
@@ -5660,5 +5703,5 @@ else bootSafe();
 })();
 
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a58718d86c45e49a',t:'MTc5NDMzNTA5Nw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a58718d86c45e49a',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
